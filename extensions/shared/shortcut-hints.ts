@@ -1,6 +1,6 @@
 /**
- * Footer shortcut-hint rendering shared by the `/ps` overview and the
- * `/ps:logs` overlay footers.
+ * Footer shortcut-hint rendering shared by the `/no-block` overview and the
+ * `/no-block:logs` overlay footers.
  *
  * Each hint renders in one of two modes:
  *

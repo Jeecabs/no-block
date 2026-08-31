@@ -3,6 +3,7 @@ import type {
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
 import type { AutocompleteItem } from "@earendil-works/pi-tui";
+import { registerNoBlockCommand } from "../../shared/no-block-commands";
 import type { DockController } from "../widget/setup";
 
 const ACTIONS = [
@@ -24,7 +25,7 @@ export function registerDockCommand(
   pi: Pick<ExtensionAPI, "registerCommand">,
   getController: () => DockController | null,
 ): void {
-  pi.registerCommand("ps:dock", {
+  registerNoBlockCommand(pi, ":dock", {
     description: "Expand, collapse, or close the managed process dock.",
     getArgumentCompletions: (prefix: string) => completions(prefix),
     handler: async (args: string, ctx: ExtensionCommandContext) => {
@@ -39,7 +40,7 @@ export function registerDockCommand(
       else if (action === "collapse") controller.actions.collapse();
       else if (action === "close") controller.actions.close();
       else {
-        report(ctx, "Usage: /ps:dock [expand|collapse|close]", "warning");
+        report(ctx, "Usage: /no-block:dock [expand|collapse|close]", "warning");
         return;
       }
 

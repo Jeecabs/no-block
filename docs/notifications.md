@@ -3,7 +3,7 @@
 This document describes how process lifecycle and log-watch events become
 notifications that reach the agent, which user options control each path, and
 which paths bypass user config. It covers the event flow only — UI rendering
-(`/ps`, dock, logs overlay) is out of scope.
+(`/no-block`, dock, logs overlay) is out of scope.
 
 There are two layers:
 
@@ -148,8 +148,8 @@ A stop is *intentional* when it goes through `killIntentionally`
 use it:
 
 - The `process stop` tool.
-- The `/ps:kill` command.
-- The `/ps` overview panel `x` key (via `requestKill` →
+- The `/no-block:kill` command.
+- The `/no-block` overview panel `x` key (via `requestKill` →
   `CHANNELS.COMMAND_KILL`).
 
 When `handleProcessEnded` sees an intentional stop, it **bypasses the
@@ -240,7 +240,7 @@ Default: a context message (no turn). `onKilled: "turn` promotes to a turn.
 #### Intentional stop (config bypass)
 
 ```
-/ps panel "x" | /ps:kill | process stop tool
+/no-block panel "x" | /no-block:kill | process stop tool
   requestKill / executeStop
     COMMAND_KILL handler                         extensions/processes/handlers/commands.ts
       killIntentionally                          extensions/processes/handlers/kill-process.ts

@@ -72,7 +72,7 @@ The cleanup registry stores cleanup config by process id, similar to the notific
 The shared stop helper should be used by:
 
 - `process stop`
-- `/ps:kill` through the core command protocol
+- `/no-block:kill` through the core command protocol
 - future UI stop actions
 
 ## Updating Cleanup After Start

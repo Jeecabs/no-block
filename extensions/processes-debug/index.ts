@@ -19,13 +19,16 @@ export default async function processesDebugExtension(
 ): Promise<void> {
   const events = pi.events;
 
-  pi.registerCommand("debug:ps:start", {
+  pi.registerCommand("debug:no-block:start", {
     description:
-      "Start a background process (debug). Usage: /debug:ps:start <name> <command>",
+      "Start a background process (debug). Usage: /debug:no-block:start <name> <command>",
     handler: async (args: string, ctx) => {
       const parsed = parseStartArgs(args);
       if (!parsed) {
-        ctx.ui.notify("Usage: /debug:ps:start <name> <command>", "warning");
+        ctx.ui.notify(
+          "Usage: /debug:no-block:start <name> <command>",
+          "warning",
+        );
         return;
       }
 

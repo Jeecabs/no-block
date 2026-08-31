@@ -6,6 +6,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import type { ProcessInfo } from "../../../src/types";
 import { sanitizeForDisplay } from "../../shared/display-text";
+import { registerNoBlockCommand } from "../../shared/no-block-commands";
 import type { ProcessProtocolConfig } from "../../shared/protocol";
 import { requestConfig, requestProcess, requestProcessList } from "../client";
 import { OverviewComponent } from "../components/overview-component";
@@ -16,9 +17,9 @@ export interface OpenOverviewOptions {
 }
 
 /**
- * Register the `/ps` overview/control panel.
+ * Register the `/no-block` overview/control panel.
  *
- * `/ps` replaces the editor while open (non-overlay `ctx.ui.custom`). It lives
+ * `/no-block` replaces the editor while open (non-overlay `ctx.ui.custom`). It lives
  * in the core extension but talks to the manager exclusively over `pi.events`
  * protocol channels, so a future split-out stays cheap.
  */
@@ -26,8 +27,8 @@ export function registerOverviewCommand(
   pi: Pick<ExtensionAPI, "registerCommand">,
   options: OpenOverviewOptions,
 ): void {
-  pi.registerCommand("ps", {
-    description: "Open the managed process overview panel.",
+  registerNoBlockCommand(pi, "", {
+    description: "Open the No Block job overview panel.",
     handler: async (args: string, ctx: ExtensionCommandContext) => {
       await openOverview(args, ctx, options);
     },

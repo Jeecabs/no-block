@@ -59,7 +59,7 @@ describe("renderStatusWidget", () => {
       theme,
     );
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toContain("{dim:ps: }");
+    expect(lines.at(0)).toContain("{dim:no-block: }");
     expect(lines[0]).toContain("{accent:dev}");
     // No trailing state word: the dot carries the status.
     expect(lines[0]).not.toContain("running");
