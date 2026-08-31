@@ -1,5 +1,5 @@
 /**
- * Core-extension request/command helpers for the `/ps` overview panel.
+ * Core-extension request/command helpers for the `/no-block` overview panel.
  *
  * The overview panel prefers the existing `pi.events` protocol channels over
  * calling the manager directly so a future split-out of the panel stays cheap.

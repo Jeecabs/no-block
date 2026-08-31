@@ -6,6 +6,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import type { ProcessInfo } from "../../../src/types";
 import { sanitizeForDisplay } from "../../shared/display-text";
+import { registerNoBlockCommand } from "../../shared/no-block-commands";
 import type { ProcessProtocolConfig } from "../../shared/protocol";
 import { requestConfig, requestProcess, requestProcessList } from "../client";
 import { allProcessCompletions } from "../completions";
@@ -28,7 +29,7 @@ export function registerLogsCommand(
     },
   };
 
-  pi.registerCommand("ps:logs", command);
+  registerNoBlockCommand(pi, ":logs", command);
 }
 
 async function openLogs(

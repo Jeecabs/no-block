@@ -1,9 +1,9 @@
 ---
-name: pi-processes-testing
-description: Test workflows for the pi-processes extension. Use when validating /ps UI/UX changes, preparing reproducible test prompts, or running manual QA with test scripts while ensuring process start is done by the LLM (not the user).
+name: no-block-testing
+description: Test workflows for No Block. Use when validating `/no-block` UI and UX changes, preparing reproducible test prompts, or running manual QA with test scripts while ensuring process start is done by the LLM, not the user.
 ---
 
-# pi-processes-testing
+# No Block testing
 
 ## Rules
 
@@ -53,9 +53,9 @@ Available scripts under `tests/e2e/scripts/`:
 
 When a feature needs a human in the loop (visual layout, keybinding feel, widget placement), drive it through a prompt the user sends to the agent, or via tmux. Never ask the user to start processes in a shell.
 
-### /ps panel
+### /no-block panel
 
-- `/ps` opens the panel
+- `/no-block` opens the panel
 - `j/k` or arrow keys move selection
 - `J/K` scroll the preview
 - `g/G` jump the preview to top/bottom
@@ -68,9 +68,9 @@ When a feature needs a human in the loop (visual layout, keybinding feel, widget
 - `?` opens the keybinds overlay (`?`, `esc`, `enter`, `q`, `ctrl+c` close it)
 - `q` or `esc` closes
 
-### /ps:logs overlay
+### /no-block:logs overlay
 
-- `/ps:logs` opens the log overlay
+- `/no-block:logs` opens the log overlay
 - `tab` / `shift+tab` switch process tabs (viewer state is cached per process)
 - `g/G` jump to top or bottom
 - `j/k` or arrow keys scroll
@@ -97,17 +97,17 @@ When a feature needs a human in the loop (visual layout, keybinding feel, widget
 
 ### Dock and pin
 
-- `/ps:dock expand|collapse|close` controls dock visibility
-- `/ps:pin [id|name]` focuses the dock on one process (picker with no args)
+- `/no-block:dock expand|collapse|close` controls dock visibility
+- `/no-block:pin [id|name]` focuses the dock on one process (picker with no args)
 
 ### Kill and clear
 
-- `/ps:kill [id|name]` stops a running process (picker with no args)
-- `/ps:clear` removes finished entries and frees their log storage
+- `/no-block:kill [id|name]` stops a running process (picker with no args)
+- `/no-block:clear` removes finished entries and frees their log storage
 
 ### Settings
 
-- `/ps:settings` opens the settings list, including the status widget toggle
+- `/no-block:settings` opens the settings list, including the status widget toggle
 
 ## Reporting format
 

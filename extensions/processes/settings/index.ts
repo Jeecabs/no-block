@@ -1,7 +1,7 @@
 /**
  * Settings registration for the processes extension.
  *
- * Uses @aliou/pi-utils-settings infrastructure for a /ps:settings command
+ * Uses @aliou/pi-utils-settings infrastructure for `/no-block:settings`.
  * with Global/Local/Memory tabs and sectioned settings.
  */
 
@@ -22,24 +22,28 @@ export function registerProcessSettings(pi: ExtensionAPI): void {
     scopes: ["global", "local", "memory"],
   });
 
-  registerSettingsCommand<ProcessConfig, ProcessProtocolConfig>(pi, {
-    commandName: "ps:settings",
-    title: "Processes Settings",
-    configStore,
-    buildSections: (
-      tabConfig: ProcessConfig | null,
-      resolved: ProcessProtocolConfig,
-      ctx,
-    ): SettingsSection[] => {
-      return buildSections(tabConfig, resolved, {
-        setDraft: ctx.setDraft,
-        scope: ctx.scope,
-        isInherited: ctx.isInherited,
-        theme: ctx.theme,
-      });
-    },
-    onSettingChange: (id, newValue, config) => {
-      return applySettingChange(id, newValue, config);
-    },
-  });
+  const register = (commandName: string) => {
+    registerSettingsCommand<ProcessConfig, ProcessProtocolConfig>(pi, {
+      commandName,
+      title: "No Block Settings",
+      configStore,
+      buildSections: (
+        tabConfig: ProcessConfig | null,
+        resolved: ProcessProtocolConfig,
+        ctx,
+      ): SettingsSection[] => {
+        return buildSections(tabConfig, resolved, {
+          setDraft: ctx.setDraft,
+          scope: ctx.scope,
+          isInherited: ctx.isInherited,
+          theme: ctx.theme,
+        });
+      },
+      onSettingChange: (id, newValue, config) => {
+        return applySettingChange(id, newValue, config);
+      },
+    });
+  };
+
+  register("no-block:settings");
 }

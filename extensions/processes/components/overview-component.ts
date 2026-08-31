@@ -508,10 +508,10 @@ export class OverviewComponent implements Component {
   private buildTooSmallBody(width: number): Component {
     const t = this.opts.theme;
     return new LinesComponent(() => [
-      t.fg("warning", "Terminal too small for /ps."),
+      t.fg("warning", "Terminal too small for /no-block."),
       t.fg("dim", `Need ${MIN_OVERVIEW_WIDTH} columns, have ${width}.`),
       "",
-      t.fg("dim", "Resize and reopen /ps."),
+      t.fg("dim", "Resize and reopen /no-block."),
     ]);
   }
 
@@ -523,7 +523,7 @@ export class OverviewComponent implements Component {
       "dim",
       filtering
         ? "No processes match the current filter. Press f or / to change it."
-        : "Start one with the process tool, then reopen /ps",
+        : "Start one with the process tool, then reopen /no-block",
     );
     const titleW = visibleWidth(title);
     const descW = visibleWidth(description);
@@ -693,7 +693,7 @@ export class OverviewComponent implements Component {
   private previewHeight(): number {
     // Fixed, bounded preview size. We deliberately do NOT size from the
     // terminal height — the overview is a compact panel, not a full-screen
-    // log viewer (use /ps:logs for that).
+    // log viewer (use /no-block:logs for that).
     return PREVIEW_HEIGHT;
   }
 

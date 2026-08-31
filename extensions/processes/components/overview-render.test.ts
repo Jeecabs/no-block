@@ -168,7 +168,7 @@ describe("overview panel render width safety", () => {
   it("empty state panel via Panel never exceeds width", () => {
     const empty = new EmptyState({
       title: "No managed processes",
-      description: "Start one with the process tool, then reopen /ps",
+      description: "Start one with the process tool, then reopen /no-block",
       titleStyle: (t: string) => t,
       descriptionStyle: (t: string) => t,
       padding: 2,
@@ -208,7 +208,8 @@ describe("overview panel render width safety", () => {
     const plain = lines.map(stripAnsi);
 
     const title = "No managed processes";
-    const description = "Start one with the process tool, then reopen /ps";
+    const description =
+      "Start one with the process tool, then reopen /no-block";
     const titleIdx = plain.findIndex((l) => l.includes(title));
     const descIdx = plain.findIndex((l) => l.includes(description));
     expect(titleIdx).toBeGreaterThanOrEqual(0);
@@ -251,7 +252,8 @@ describe("overview panel render width safety", () => {
     // would mangle escape codes).
     const plain = lines.map(stripAnsi);
     const title = "No managed processes";
-    const description = "Start one with the process tool, then reopen /ps";
+    const description =
+      "Start one with the process tool, then reopen /no-block";
     const titleIdx = plain.findIndex((l) => l.includes(title));
     const descIdx = plain.findIndex((l) => l.includes(description));
     expect(titleIdx).toBeGreaterThanOrEqual(0);

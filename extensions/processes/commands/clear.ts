@@ -2,17 +2,18 @@ import type {
   ExtensionAPI,
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
+import { registerNoBlockCommand } from "../../shared/no-block-commands";
 import { requestClear } from "../client";
 
 /**
- * Register `/ps:clear`.
+ * Register `/no-block:clear`.
  *
  * Removes finished processes from the list via the clear protocol channel,
  * mirroring main's behavior. Returns the count of cleared processes.
  */
 export function registerClearCommand(pi: ExtensionAPI): void {
   const events = pi.events;
-  pi.registerCommand("ps:clear", {
+  registerNoBlockCommand(pi, ":clear", {
     description: "Remove finished processes from the list.",
     handler: async (_args: string, ctx: ExtensionCommandContext) => {
       const cleared = requestClear(events);

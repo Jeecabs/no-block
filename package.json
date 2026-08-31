@@ -24,7 +24,7 @@
       "./extensions/processes-dock/index.ts"
     ],
     "skills": [
-      "./skills/pi-processes"
+      "./skills/no-block"
     ],
     "image": "https://raw.githubusercontent.com/Jeecabs/no-block/main/assets/no-block-logo.png"
   },
