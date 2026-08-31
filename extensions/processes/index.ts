@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { ProcessManager } from "../../src/manager";
 import { isWindowsPlatform } from "../../src/utils/platform";
+import { registerNoBlockTool } from "../no-block";
 import { registerClearCommand } from "./commands/clear";
 import { registerKillCommand } from "./commands/kill";
 import { registerOverviewCommand } from "./commands/overview";
@@ -74,6 +75,7 @@ export default async function processesExtension(
 
   registerProcessNotificationRenderer(pi);
   registerProcessTool(pi, manager, notifications);
+  registerNoBlockTool(pi, manager, notifications);
   registerProcessSettings(pi);
   registerOverviewCommand(pi, { events: pi.events, registerOverlay });
   registerKillCommand(pi);

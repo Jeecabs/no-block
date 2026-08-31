@@ -22,10 +22,11 @@ do not affect delivery.
 
 ### Delivery timing
 
-`turn` notifications use Pi's `steer` path. They wake an idle agent or reach an
-active run after its current tool calls finish. `context` and emitted `ignore`
-notifications use `nextTurn`: they do not wake or steer the agent and enter the
-conversation with the next user prompt.
+Generic `turn` notifications use Pi's `steer` path. They wake an idle agent or
+reach an active run after its current tool calls finish. No Block lifecycle
+notifications use `followUp` so a completed finite job does not redirect an
+active run. `context` and emitted `ignore` notifications use `nextTurn`. They do
+not wake or steer the agent and enter the conversation with the next user prompt.
 
 Deferring non-turn notifications also preserves tool-call ordering. Appending a
 custom message during tool execution would place it between the assistant
@@ -64,13 +65,30 @@ An attention level is resolved per event and mapped to Pi send options by
 
 | Attention | `triggerTurn` | `deliverAs` | Agent effect |
 | --------- | ------------- | ----------- | ------------ |
-| `turn` | `true` | `steer` | Wakes an idle agent or steers an active run after its current tool calls. |
+| `turn` | `true` | `steer` or `followUp` | Wakes an idle agent. Generic events steer. No Block terminal events wait for the active run to settle. |
 | `context` | `false` | `nextTurn` | Waits for the next user prompt; does not wake or steer the agent. |
 | `ignore` | `false` | `nextTurn` | Suppressed for successful exits and external kills; emitted log matches wait for the next user prompt. Failures are promoted to `context`. |
 
 Every delivered message has `display: true` and is persisted when Pi adds it to
 the conversation. A `nextTurn` message is not displayed or persisted until the
 next user prompt.
+
+The delivery listener retries lifecycle messages when `pi.sendMessage` throws
+synchronously. Delivery moves through `pending`, `publishing`, and `published`
+states. It retries at 100 ms, 200 ms, and 400 ms. Disposal cancels pending
+retries. Log-match messages do not retry because a delayed retry could bypass
+their rate limit.
+
+## No Block foreground suppression
+
+No Block initially registers each Bash job with `completionDelivery: "tool"`.
+If the job exits during the foreground wait, the Bash tool result reports the
+terminal state. The notification service suppresses the duplicate lifecycle
+message.
+
+When the foreground wait expires, No Block changes the job to
+`completionDelivery: "notify"` and sets `turnDelivery: "followUp"`. The later
+terminal event wakes the idle agent or waits for the active run to settle.
 
 ## Lifecycle notifications
 

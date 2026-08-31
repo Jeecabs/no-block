@@ -276,6 +276,37 @@ describe("NotificationService", () => {
     service.dispose();
   });
 
+  it("suppresses lifecycle notification when the Bash tool reports the exit", async () => {
+    const fakeManager = createFakeManager();
+    const spy = createNotificationSpy();
+    const registry = createNotificationRegistry();
+
+    registry.register("proc_1", { completionDelivery: "tool" });
+
+    const service = createNotificationService({
+      events: spy.events,
+      manager: fakeManager as never,
+      registry,
+      getProcess: (id) => processes.get(id) ?? null,
+    });
+
+    fakeManager.emit({
+      type: "process_ended",
+      info: makeInfo({
+        id: "proc_1",
+        success: false,
+        exitCode: 1,
+        endReason: "exit",
+      }),
+    });
+    await flushQueuedMicrotasks();
+
+    expect(spy.emitted).toHaveLength(0);
+    expect(registry.get("proc_1")).toBeNull();
+
+    service.dispose();
+  });
+
   it("suppresses an ignored successful exit", async () => {
     const fakeManager = createFakeManager();
     const spy = createNotificationSpy();

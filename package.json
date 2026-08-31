@@ -1,18 +1,21 @@
 {
-  "name": "@aliou/pi-processes",
-  "version": "0.12.0",
+  "name": "@jeecabs/no-block",
+  "version": "0.1.0",
   "license": "MIT",
   "type": "module",
   "private": false,
+  "description": "Finite Bash jobs yield without blocking Pi and report their exit later.",
   "keywords": [
     "pi-package",
     "pi-extension",
     "pi",
-    "processes"
+    "processes",
+    "bash",
+    "background-jobs"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/aliou/pi-processes"
+    "url": "https://github.com/Jeecabs/no-block"
   },
   "pi": {
     "extensions": [
@@ -23,8 +26,7 @@
     "skills": [
       "./skills/pi-processes"
     ],
-    "image": "https://assets.aliou.me/github/aliou/pi-processes/banner-v0.10.x.png",
-    "video": "https://assets.aliou.me/pi-extensions/demos/processes/v0.10.0/agent-starts-processes.mp4"
+    "image": "https://raw.githubusercontent.com/Jeecabs/no-block/main/assets/no-block-logo.png"
   },
   "publishConfig": {
     "access": "public"
@@ -38,6 +40,7 @@
     "extensions",
     "!extensions/**/*.test.ts",
     "skills",
+    "assets",
     "schema.json",
     "README.md",
     "CONTRIBUTING.md"
