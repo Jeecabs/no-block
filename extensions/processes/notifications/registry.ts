@@ -14,6 +14,10 @@ export interface NotifyConfig {
   onFailure?: Attention;
   onKilled?: Attention;
   logMatches?: LogMatcherConfig[];
+  /** The Bash tool reports this process end directly instead of waking the agent. */
+  completionDelivery?: "notify" | "tool";
+  /** Delivery mode for lifecycle events that request an agent turn. */
+  turnDelivery?: "steer" | "followUp";
 }
 
 export interface WatchMeta {

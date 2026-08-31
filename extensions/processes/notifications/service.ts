@@ -86,37 +86,55 @@ export function createNotificationService(deps: NotificationServiceDeps): {
   }
 
   function handleProcessEnded(info: ProcessInfo): void {
-    const isIntentionalStop = registry.consumeIntentionalStop(info.id);
-    const kind = classifyProcessEnd(info);
-
-    if (isIntentionalStop) {
-      const details = buildLifecycleDetails(info, kind, "context");
-      events.emit(CHANNELS.NOTIFICATION, details);
-
-      cleanupMatcherState(info.id);
-      registry.unregister(info.id);
-      return;
-    }
-
     const config = registry.get(info.id);
+    if (suppressToolOwnedCompletion(info.id, config)) return;
+
+    const kind = classifyProcessEnd(info);
+    if (emitIntentionalStop(info, kind)) return;
+
     const attention = resolveAttention(kind, config);
-
     const shouldForceDisplay = kind === "crash" || kind === "failure";
-
     if (attention === "ignore" && !shouldForceDisplay) {
-      cleanupMatcherState(info.id);
-      registry.unregister(info.id);
+      finishNotificationLifecycle(info.id);
       return;
     }
 
     const effectiveAttention: Attention =
-      attention === "ignore" && shouldForceDisplay ? "context" : attention;
-
-    const details = buildLifecycleDetails(info, kind, effectiveAttention);
+      attention === "ignore" ? "context" : attention;
+    const details = buildLifecycleDetails(
+      info,
+      kind,
+      effectiveAttention,
+      config?.turnDelivery,
+    );
     events.emit(CHANNELS.NOTIFICATION, details);
+    finishNotificationLifecycle(info.id);
+  }
 
-    cleanupMatcherState(info.id);
-    registry.unregister(info.id);
+  function suppressToolOwnedCompletion(
+    processId: string,
+    config: NotifyConfig | null,
+  ): boolean {
+    if (config?.completionDelivery !== "tool") return false;
+    registry.consumeIntentionalStop(processId);
+    finishNotificationLifecycle(processId);
+    return true;
+  }
+
+  function emitIntentionalStop(
+    info: ProcessInfo,
+    kind: ProcessNotificationKind,
+  ): boolean {
+    if (!registry.consumeIntentionalStop(info.id)) return false;
+    const details = buildLifecycleDetails(info, kind, "context");
+    events.emit(CHANNELS.NOTIFICATION, details);
+    finishNotificationLifecycle(info.id);
+    return true;
+  }
+
+  function finishNotificationLifecycle(processId: string): void {
+    cleanupMatcherState(processId);
+    registry.unregister(processId);
   }
 
   function handleOutputChanged(
@@ -176,46 +194,58 @@ export function createNotificationService(deps: NotificationServiceDeps): {
     info: ProcessInfo,
     kind: ProcessNotificationKind,
     attention: Attention,
+    turnDelivery?: "steer" | "followUp",
   ): ProcessNotificationDetails {
-    const elapsed =
-      info.endTime !== null && info.startTime > 0
-        ? Math.round((info.endTime - info.startTime) / 1000)
-        : null;
-
-    let summary: string;
-    if (kind === "success") {
-      summary =
-        elapsed !== null
-          ? `Process "${info.name}" succeeded after ${elapsed}s.`
-          : `Process "${info.name}" succeeded.`;
-    } else if (kind === "killed" && info.signal) {
-      const number =
-        info.signal.number === null
-          ? ""
-          : ` (${info.signal.number}, ${info.signal.description})`;
-      summary = `Process "${info.name}" ended after receiving ${info.signal.name}${number}.`;
-    } else if (info.exitCode !== null && info.exitCode !== 0) {
-      summary =
-        elapsed !== null
-          ? `Process "${info.name}" failed with exit code ${info.exitCode} after ${elapsed}s.`
-          : `Process "${info.name}" failed with exit code ${info.exitCode}.`;
-    } else {
-      summary = `Process "${info.name}" failed.`;
-    }
-
     return {
       kind,
       processId: info.id,
       processName: info.name,
       command: info.command,
       timestamp: info.endTime ?? Date.now(),
-      summary,
+      summary: buildLifecycleSummary(info, kind),
       status: info.status,
       exitCode: info.exitCode,
       endReason: info.endReason,
       signal: info.signal,
       attention,
+      turnDelivery: attention === "turn" ? turnDelivery : undefined,
     };
+  }
+
+  function buildLifecycleSummary(
+    info: ProcessInfo,
+    kind: ProcessNotificationKind,
+  ): string {
+    const elapsed =
+      info.endTime !== null && info.startTime > 0
+        ? Math.round((info.endTime - info.startTime) / 1000)
+        : null;
+    const elapsedSuffix = elapsed === null ? "" : ` after ${elapsed}s`;
+
+    if (kind === "success") {
+      return `Process "${info.name}" succeeded${elapsedSuffix}.`;
+    }
+    if (kind === "killed") return buildKilledSummary(info);
+    return buildFailureSummary(info, elapsedSuffix);
+  }
+
+  function buildKilledSummary(info: ProcessInfo): string {
+    if (!info.signal) return `Process "${info.name}" failed.`;
+    const number =
+      info.signal.number === null
+        ? ""
+        : ` (${info.signal.number}, ${info.signal.description})`;
+    return `Process "${info.name}" ended after receiving ${info.signal.name}${number}.`;
+  }
+
+  function buildFailureSummary(
+    info: ProcessInfo,
+    elapsedSuffix: string,
+  ): string {
+    if (info.exitCode === null || info.exitCode === 0) {
+      return `Process "${info.name}" failed.`;
+    }
+    return `Process "${info.name}" failed with exit code ${info.exitCode}${elapsedSuffix}.`;
   }
 
   function buildLogMatchDetails(

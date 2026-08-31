@@ -20,10 +20,11 @@ export interface ProcessNotificationSendOptions {
  */
 export function attentionToSendOptions(
   attention: Attention,
+  turnDelivery: "steer" | "followUp" = "steer",
 ): ProcessNotificationSendOptions {
   switch (attention) {
     case "turn":
-      return { triggerTurn: true, deliverAs: "steer" };
+      return { triggerTurn: true, deliverAs: turnDelivery };
     case "context":
       return { triggerTurn: false, deliverAs: "nextTurn" };
     case "ignore":
