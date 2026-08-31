@@ -11,6 +11,16 @@ import {
 
 const NOTIFICATION_WINDOW_MS = 60_000;
 const MAX_LOG_MATCH_NOTIFICATIONS_PER_WINDOW = 20;
+const NOTIFICATION_RETRY_BASE_MS = 100;
+const MAX_NOTIFICATION_RETRIES = 3;
+
+type DeliveryState = "pending" | "publishing" | "published";
+
+interface PendingDelivery {
+  payload: ProcessProtocolNotificationPayload;
+  attempt: number;
+  state: DeliveryState;
+}
 
 /**
  * Delivers notification events emitted on {@link CHANNELS.NOTIFICATION} to Pi as
@@ -31,7 +41,43 @@ export function registerNotificationDelivery(
   let windowStart: number | null = null;
   let sentInWindow = 0;
   let suppressed = 0;
+  let disposed = false;
   let summaryTimer: ReturnType<typeof setTimeout> | null = null;
+  const retryTimers = new Set<ReturnType<typeof setTimeout>>();
+
+  const publish = (delivery: PendingDelivery): void => {
+    if (disposed || delivery.state === "published") return;
+    delivery.state = "publishing";
+    try {
+      const options = attentionToSendOptions(
+        delivery.payload.attention,
+        delivery.payload.turnDelivery,
+      );
+      sendProcessNotificationMessage(pi, delivery.payload, options);
+      delivery.state = "published";
+    } catch {
+      delivery.state = "pending";
+      if (
+        !isLifecycleNotification(delivery.payload) ||
+        delivery.attempt >= MAX_NOTIFICATION_RETRIES
+      ) {
+        return;
+      }
+
+      const delay = NOTIFICATION_RETRY_BASE_MS * 2 ** delivery.attempt;
+      delivery.attempt++;
+      const timer = setTimeout(() => {
+        retryTimers.delete(timer);
+        publish(delivery);
+      }, delay);
+      timer.unref?.();
+      retryTimers.add(timer);
+    }
+  };
+
+  const deliver = (payload: ProcessProtocolNotificationPayload): void => {
+    publish({ payload, attempt: 0, state: "pending" });
+  };
 
   const clearSummaryTimer = () => {
     if (!summaryTimer) return;
@@ -59,11 +105,7 @@ export function registerNotificationDelivery(
       summary: `Suppressed ${count} log-match notifications because output was too fast.`,
       attention: "context",
     };
-    sendProcessNotificationMessage(
-      pi,
-      details,
-      attentionToSendOptions(details.attention),
-    );
+    deliver(details);
   };
 
   const flushSuppressedSummary = () => {
@@ -102,13 +144,26 @@ export function registerNotificationDelivery(
         sentInWindow++;
       }
 
-      const options = attentionToSendOptions(payload.attention);
-      sendProcessNotificationMessage(pi, payload, options);
+      deliver(payload);
     },
   );
 
   return () => {
+    disposed = true;
     disposeListener();
     resetWindow();
+    for (const timer of retryTimers) clearTimeout(timer);
+    retryTimers.clear();
   };
+}
+
+function isLifecycleNotification(
+  payload: ProcessProtocolNotificationPayload,
+): boolean {
+  return (
+    payload.kind === "success" ||
+    payload.kind === "failure" ||
+    payload.kind === "crash" ||
+    payload.kind === "killed"
+  );
 }

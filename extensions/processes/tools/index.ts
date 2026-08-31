@@ -50,15 +50,15 @@ export function registerProcessTool(
       name: "process",
       label: "Process",
       description:
-        "Start, list, stop, write to stdin, update, clear, and inspect output of long-running background processes.",
+        "List, stop, write to stdin, update, clear, and inspect finite jobs supervised by No Block. It can also start an explicitly managed job.",
       promptSnippet:
-        "Manage long-running background processes: start, list, stop, write to stdin, update watches, clear finished entries, and inspect recent output. After starting a process, do not wait - notifications bring you back on exit and on log matches.",
+        "Inspect and control finite jobs that No Block moved out of the foreground",
       promptGuidelines: [
-        "process tool: use process start for long-running commands (dev servers, watchers, builds) instead of shell background patterns like &, nohup, or setsid; give each process a specific name and check process list first when a duplicate would be noisy.",
-        "process tool: after process start, do not sleep, poll, or hold your turn. End your turn or move on. Exits and notify.logMatches matches bring you back.",
-        "process tool: attention turn wakes or steers you now; context waits for the next user prompt. Ignore suppresses successful exits and external kills but retains log matches as context. Failures always notify, with ignore downgraded to context. Keep turn for anything whose result you need immediately.",
-        "process tool: use notify.logMatches to get brought back on readiness or error signals instead of polling process output. If a watch is too noisy, use process update (watches.mode append/replace/remove/clear) to fix it without restarting.",
-        "process tool: for the full lifecycle (start, list, output, update, write, stop, clear), notify options, use cases, and noisy-watch handling, read the pi-processes skill.",
+        "Use bash for finite commands whose exit code matters. No Block returns quick results normally and reports slow job completion later.",
+        "Use process list, output, write, stop, update, or clear to inspect and control a finite job after No Block yields it.",
+        "Do not sleep or poll for a yielded job. Continue other work or end the turn. No Block reports its terminal result.",
+        "Use a service process manager for dev servers, watchers, tunnels, local APIs, port forwards, log tails, and other indefinite processes.",
+        "Use process notify.logMatches only when a finite job has a specific actionable output marker. If a watch is noisy, use process update to change it without restarting.",
       ],
       parameters: ProcessesParams,
       async execute(_toolCallId, params, _signal, _onUpdate, ctx) {

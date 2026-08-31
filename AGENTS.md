@@ -1,6 +1,6 @@
-# pi-processes
+# No Block
 
-Public Pi package for managing background processes. Exposes multiple Pi extensions.
+Pi package for finite Bash jobs that yield without blocking. Forked from pi-processes and still exposes its process-management extensions.
 
 ## Tool and command audience
 

@@ -45,4 +45,6 @@ export interface ProcessProtocolNotificationPayload {
   signal?: ProcessSignalInfo | null;
   logMatch?: ProcessProtocolNotificationLogMatch;
   attention: ProcessProtocolAttention;
+  /** Optional delivery override for turn-attention lifecycle events. */
+  turnDelivery?: "steer" | "followUp";
 }

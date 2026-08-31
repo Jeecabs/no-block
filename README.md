@@ -1,198 +1,117 @@
-![banner](https://assets.aliou.me/github/aliou/pi-processes/banner-v0.10.x.png)
+<p align="center">
+  <img src="./assets/no-block-logo.png" alt="No Block mascot vaulting over a blocked terminal command" width="280">
+</p>
 
-# pi-processes
+# No Block
 
-Manage background processes from Pi without blocking the conversation.
+Run finite Bash jobs without blocking Pi while they finish.
 
-This extension lets Pi keep long-running commands alive while the conversation continues. It is useful for dev servers, test watchers, local APIs, builds, and log tails.
+No Block replaces Pi's Bash tool for commands that must return an exit code. Quick commands return normally. A slow command yields after 30 seconds, remains supervised, and reports its terminal result when it exits.
 
-## Let Pi keep working while processes run
+No Block builds on [aliou/pi-processes](https://github.com/aliou/pi-processes). It retains the process panel, bounded logs, process-group cleanup, stdin support, and log watches from that project.
 
-When a task needs a long-running command, Pi can start it in the background by itself and keep helping with the rest of the work.
+## Choose the correct process lane
 
-[![Pi starts a long-running process and keeps working](https://assets.aliou.me/pi-extensions/demos/processes/v0.10.0/agent-starts-processes.gif)](https://assets.aliou.me/pi-extensions/demos/processes/v0.10.0/agent-starts-processes.mp4)
+| Command type | Use |
+| --- | --- |
+| Tests, checks, migrations, exports, archives, and other finite jobs | No Block `bash` |
+| Dev servers, watchers, local APIs, tunnels, port forwards, and log tails | A service process manager such as whiskd |
+| Docker or Podman workloads | The native container lifecycle |
 
-That means Pi can, for example:
-
-- start a dev server and keep coding
-- keep a test watcher running while it fixes failures
-- run a local API while it inspects logs
-- watch build output without blocking the conversation
-
-You can then inspect, pin, stop, or clear those processes from the UI.
+A finite job has a meaningful terminal result. An indefinite service is successful while it stays alive. Do not use No Block as a service manager.
 
 ## Installation
 
-From npm:
+From npm after the first release:
 
 ```bash
-pi install npm:@aliou/pi-processes
+pi install npm:@jeecabs/no-block
 ```
 
 From git:
 
 ```bash
-pi install git:github.com/aliou/pi-processes
+pi install git:github.com/Jeecabs/no-block
 ```
 
-## How Pi stays in the loop
+## Bash behavior
 
-Pi does not wait around for a background process. After it starts one, it keeps helping with the rest of the work and gets brought back automatically when something happens:
+The `bash` tool accepts these fields:
 
-- a readiness marker appears in the logs (a server prints "ready")
-- an error appears in the logs (a build prints a type error)
-- the process exits, whether it succeeded, failed, or was killed
+```ts
+type BashInput = {
+  command: string;
+  name?: string;
+  backgroundAfter?: number;
+  timeout?: number;
+};
+```
 
-That is how Pi can start a dev server and then keep coding, or run a test watcher and react when a test fails, without sleeping or polling. If a watch fires too often, Pi can quiet it without restarting the process.
+- `command` is the finite shell command.
+- `name` is an optional job name.
+- `backgroundAfter` is the foreground wait in seconds. The default is `30`.
+- `timeout` is a hard lifetime limit in seconds.
 
-## Open the process panel
+No Block starts every Bash job in the process manager.
 
-Use `/ps` to open the main process panel. It shows running and finished processes, with the most recent output preview. The preview opens on the newest page so you can see live activity without scrolling.
+If the job exits before `backgroundAfter`, Bash returns its output and exit status normally. No Block does not send a lifecycle notification because the tool result already reports the terminal state.
 
-From there you can:
+If the job is still running at `backgroundAfter`, Bash returns its process ID and log paths. The agent can continue other work. No Block sends one follow-up when the process exits.
 
-- see running and finished processes
-- inspect recent output
-- pin a process to the dock
-- kill a running process
-- clear finished entries
+A hard `timeout` remains active after background handoff. When it expires, No Block stops the process group and reports the terminal event once.
 
-## Inspect logs
+## Completion delivery
 
-Use `/ps:logs [id]` to open the log overlay for one process. The viewer is cached per process, so switching tabs preserves scroll position and follow mode.
+No Block uses `followUp` for an unobserved background completion. It does not steer an active tool batch.
 
-This is useful when Pi started a server, watcher, or local API and you want to follow what it is doing in more detail.
+Lifecycle delivery uses explicit states:
 
-## Control the dock
+```text
+pending -> publishing -> published
+             |
+             +-> pending after a synchronous enqueue failure
+```
 
-Use `/ps:dock [expand|collapse|close]` to control dock visibility.
+A transient synchronous enqueue failure schedules a bounded retry. No Block marks a notification as published only after Pi accepts the message.
 
-The dock gives you a compact live view without leaving the conversation.
+Pi does not provide a provider-turn acknowledgment. No Block can guarantee retryable message enqueue, not exactly-once model processing.
 
-## Pin one process
+## Inspect a yielded job
 
-Use `/ps:pin [id]` to keep the dock focused on one process.
+Use `/ps` to open the process panel. It shows running and recently finished finite jobs.
 
-This is useful when one process matters more than the others, such as a dev server or a test watcher.
+Use `/ps:logs [id]` for retained output. Use `/ps:kill [id]` to stop a job. Use `/ps:clear` to remove finished entries and their log storage.
 
-Without arguments, Pi shows a picker.
+The model can use the inherited `process` tool to list jobs and inspect output. It can also write stdin, update log watches, stop jobs, and clear finished entries.
 
-## Stop and clear processes
+## Output and cleanup
 
-Use `/ps:kill [id]` to stop a running process, and `/ps:clear` to remove finished entries from the panel and free their log storage.
+No Block stores stdout, stderr, and combined logs. Each log file has a 64 MiB cap. Model-visible output remains bounded.
 
-`/ps:kill` waits for the process to actually exit (or time out), so the result it reports reflects what happened. Without arguments, Pi shows a picker.
+Commands run in detached POSIX process groups. A stop targets the full group. Session shutdown stops live jobs and removes temporary manager state.
 
-`/ps:clear` never touches live processes.
+No Block supports macOS and Linux. It does not support Windows.
 
-## Keep a status line in view
+## Configuration
 
-Enable the status widget in `/ps:settings` to show a compact line of running processes below the editor. Each process shows a status dot, its name, and its state, with `+N more` overflow when the line does not fit.
+Use `/ps:settings` for inherited process settings. These settings control shell path, output limits, panel size, follow mode, dock behavior, and the optional status widget.
 
-It is disabled by default. The widget reflows on resize and clears itself when the process list is empty.
+The inherited background-command interception option blocks shell patterns such as `&`, `nohup`, `disown`, and `setsid`. Keep service-shaped routing in the separate service manager integration.
 
-## Send input to a process
+## Development
 
-Use the `process` tool with `action: "write"` to send bytes to a running process's stdin. This is how you drive interactive servers, REPLs, and CLIs that expect input after they start.
+```bash
+pnpm install
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm test:e2e
+```
 
-Pass `input` for the bytes to write, and set `end: true` to close stdin (for example to signal EOF to a waiting process).
+The package uses TypeScript, Node.js 22.19 or newer, pnpm, Biome, Vitest, and Changesets.
 
-## Adjust settings
+## Upstream and license
 
-Use `/ps:settings` to configure the extension.
+No Block is a fork of [`@aliou/pi-processes`](https://github.com/aliou/pi-processes). The original process manager, user interface, protocol, and documentation structure remain under the MIT license.
 
-Available settings include:
-
-- process list size
-- output limits
-- shell path override
-- dock defaults
-- follow mode behavior
-- status widget toggle
-- optional background command interception
-
-## Platform support
-
-- macOS: supported
-- Linux: supported
-- Windows: not supported
-
-## Similar but different
-
-Pi has several process, terminal, and background-task extensions. pi-processes focuses on explicit LLM-managed background processes, log inspection, watches that can wake the agent, and Pi UI surfaces for `/ps`, logs, dock, and status.
-
-See [pi.dev/packages](https://pi.dev/packages) for the full registry of Pi extensions.
-
-### Background command managers
-
-These packages are closest when you want shell commands, dev servers, watchers, or logs to keep running while Pi continues the conversation.
-
-- [pi-background-tasks](https://pi.dev/packages/pi-background-tasks): durable background shell tasks plus delegated child Pi workflows.
-- [@99percentpeople/pi-background-tasks](https://pi.dev/packages/%4099percentpeople/pi-background-tasks): background commands and attachable PTY/TUI sessions, with SSH Remote integration.
-- [@richardgill/pi-background-bash](https://github.com/richardgill/pi-extensions/tree/main/extensions/background-bash): replaces `bash` with session-owned local process groups and adds `bash_process` for list, peek, and kill.
-- [pi-bash-bg](https://pi.dev/packages/pi-bash-bg): minimal `&` support for Pi's bash tool, detaching background processes and keeping output out of the context window.
-- [pi-tian-background-terminals](https://pi.dev/packages/pi-tian-background-terminals): replaces Pi's built-in Bash with automatic background yielding, completion notifications, and a `/ps` viewer.
-- [pi-better-background-tasks](https://pi.dev/packages/pi-better-background-tasks): durable background shell tasks, watchers, logs, and status inspection.
-- [pi-patty-bg-tasks](https://pi.dev/packages/pi-patty-bg-tasks): Claude Code-style background tasks with auto-backgrounding, attach, file-backed output, and cooperative steering.
-- [@mjakl/pi-processes](https://pi.dev/packages/%40mjakl/pi-processes): stripped-down pi-processes fork with the `process` tool, a single `/ps` overlay, a compact status line, and fewer commands/settings.
-- [@haemmid/pi-processes](https://pi.dev/packages/%40haemmid/pi-processes): pi-web-focused pi-processes fork for dev-server automation, with `ensure`, `restart`, and `wait` actions for Astro/Vite-style workflows.
-- [pi-processes-git-bash](https://pi.dev/packages/pi-processes-git-bash): pi-processes fork for Windows users through Git Bash.
-
-### Terminal and shell replacements
-
-These packages are a better fit when you want a different shell substrate, PTY behavior, or platform-specific terminal support.
-
-- [pi-unified-exec](https://pi.dev/packages/pi-unified-exec): Codex-style long-lived shell sessions with stdin, PTY, REPL, SSH, dev-server, and disk-log support.
-- [pi-live-terminal](https://pi.dev/packages/pi-live-terminal): tmux-backed command runner with a live terminal widget.
-- [@aliaksei-raketski/pi-tmux-bash](https://pi.dev/packages/%40aliaksei-raketski/pi-tmux-bash): runs model-facing shell commands in managed tmux windows.
-- [@4fu/pi-pwsh](https://pi.dev/packages/%404fu/pi-pwsh): persistent PowerShell tasks for Pi on Windows, with ConPTY sessions and user requests.
-- [pi-pwsh-notify](https://pi.dev/packages/pi-pwsh-notify): PowerShell shell with background jobs and completion/server-ready notifications.
-
-### Monitors, schedulers, and visibility
-
-These packages are more about watching, waking, or surfacing process state than replacing pi-processes directly.
-
-- [pi-event-monitor](https://pi.dev/packages/pi-event-monitor): event-driven shell-stream and file watchers that wake the session on process exit, matching output, or file writes.
-- [pi-monitor-plugin](https://pi.dev/packages/pi-monitor-plugin): background jobs, monitors, loops, schedules, and idle-aware notifications.
-- [pi-tripwire](https://pi.dev/packages/pi-tripwire): footer visibility for agent-spawned localhost servers; not a process runner itself.
-- [@cortexkit/aft-pi](https://pi.dev/packages/%40cortexkit/aft-pi): broader Agent File Tools package that includes background bash tasks, PTY sessions, and output compression alongside code-analysis tools.
-
-## Troubleshooting
-
-### Pi started something and I want to see more output
-
-Open `/ps` for a quick overview, or use `/ps:logs` for full logs.
-
-### I want one process to stay visible
-
-Use `/ps:pin` to focus the dock on that process.
-
-### I want Pi to avoid shell background tricks
-
-Enable background command interception in `/ps:settings`. When enabled, Pi avoids normal shell background patterns and uses the process workflow instead.
-
-## Feature demos
-
-**Watch a file-backed log and recover from an error**
-
-[![Watch a file-backed log and recover from an error](https://assets.aliou.me/pi-extensions/demos/processes/v0.10.0/debug-from-log.gif)](https://assets.aliou.me/pi-extensions/demos/processes/v0.10.0/debug-from-log.mp4)
-
-**Open the log overlay and inspect output**
-
-[![Open the log overlay and inspect output](https://assets.aliou.me/pi-extensions/demos/processes/v0.10.0/inspect-logs.gif)](https://assets.aliou.me/pi-extensions/demos/processes/v0.10.0/inspect-logs.mp4)
-
-**Stop and clear processes**
-
-[![Stop and clear processes](https://assets.aliou.me/pi-extensions/demos/processes/v0.10.0/stop-and-clear.gif)](https://assets.aliou.me/pi-extensions/demos/processes/v0.10.0/stop-and-clear.mp4)
-
-**Send input to a running process**
-
-[![Send input to a running process](https://assets.aliou.me/pi-extensions/demos/processes/v0.10.0/send-input.gif)](https://assets.aliou.me/pi-extensions/demos/processes/v0.10.0/send-input.mp4)
-
-## Contributing
-
-For development, testing, docs generation, and extension internals, see [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-## License
-
-MIT
+No Block is also MIT licensed.

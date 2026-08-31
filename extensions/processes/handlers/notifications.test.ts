@@ -57,6 +57,35 @@ describe("registerNotificationDelivery", () => {
     expect(options.deliverAs).toBe("nextTurn");
   });
 
+  it("retries a lifecycle notification after a transient enqueue failure", () => {
+    vi.useFakeTimers();
+    try {
+      const events = createEventBus();
+      const sendMessage = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error("queue unavailable");
+        })
+        .mockImplementation(() => undefined);
+      const dispose = registerNotificationDelivery(
+        events,
+        piWithSendMessage(sendMessage),
+      );
+
+      expect(() =>
+        events.emit(CHANNELS.NOTIFICATION, makePayload({ kind: "crash" })),
+      ).not.toThrow();
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(100);
+
+      expect(sendMessage).toHaveBeenCalledTimes(2);
+      dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stops delivering after the disposer is called", () => {
     const events = createEventBus();
     const sendMessage = vi.fn();
