@@ -92,7 +92,7 @@ export function renderStatusWidget(
 
   const { individual, exitedSuccess } = partitionForStatusLine(processes);
 
-  const prefix = theme.fg("dim", "ps: ");
+  const prefix = theme.fg("dim", "no-block: ");
   const prefixLen = visibleWidth(prefix);
   const separator = theme.fg("dim", "  ");
   const separatorLen = visibleWidth(separator);

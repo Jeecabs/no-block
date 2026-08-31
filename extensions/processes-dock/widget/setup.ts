@@ -74,7 +74,7 @@ export function setupDockWidgets(
       pendingRender = null;
     }
     if (disposed) return;
-    // Re-read config live: /ps:settings can change dock height and the
+    // Re-read config live: /no-block:settings can change dock height and the
     // startup snapshot may predate the persisted merge.
     const liveConfig = requestConfig(events);
     const current = state.getState();
@@ -127,7 +127,7 @@ export function setupDockWidgets(
 
   const renderStatus = () => {
     if (disposed) return;
-    // Re-read config live so toggling showStatusWidget in /ps:settings takes
+    // Re-read config live so toggling showStatusWidget in /no-block:settings takes
     // effect without a restart.
     const liveConfig = requestConfig(events);
     if (!liveConfig.widget.showStatusWidget) {
@@ -386,7 +386,7 @@ export function setupDockWidgets(
     // run. Refresh the local snapshot first so expand/pin renders immediately
     // against the current process list.
     processes = sortProcesses(requestProcessList(events));
-    // id: null unpins the dock (mirrors `/ps:pin clear`).
+    // id: null unpins the dock (mirrors `/no-block:pin clear`).
     if (command.id === null) {
       actions.setFocus(null);
       actions.expand();

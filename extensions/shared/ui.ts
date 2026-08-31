@@ -144,8 +144,8 @@ export function formatProcessSelectionLabel(process: ProcessInfo): string {
 
 /**
  * Build the `description` string for process picker items and autocomplete
- * completions: `"running — pnpm dev"`. Shared so `/ps:kill`, `/ps:logs`,
- * `/ps:pin`, and the logs completions stay consistent.
+ * completions: `"running — pnpm dev"`. Shared so `/no-block:kill`,
+ * `/no-block:logs`, `/no-block:pin`, and the logs completions stay consistent.
  */
 export function formatProcessSelectionDescription(
   process: ProcessInfo,

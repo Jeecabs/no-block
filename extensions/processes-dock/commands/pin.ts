@@ -9,6 +9,7 @@ import {
   type SelectItem,
   SelectList,
 } from "@earendil-works/pi-tui";
+import { registerNoBlockCommand } from "../../shared/no-block-commands";
 import {
   formatProcessSelectionDescription,
   formatProcessSelectionLabel,
@@ -21,7 +22,7 @@ export function registerPinCommand(
   events: EventBus,
   getController: () => DockController | null,
 ): void {
-  pi.registerCommand("ps:pin", {
+  registerNoBlockCommand(pi, ":pin", {
     description: "Pin the process dock to a process.",
     getArgumentCompletions: (prefix: string) =>
       completions(
@@ -69,7 +70,7 @@ async function pickPinTarget(
   controller: DockController,
 ): Promise<string | null> {
   if (ctx.mode !== "tui") {
-    report(ctx, "Usage: /ps:pin <process-id|clear>", "warning");
+    report(ctx, "Usage: /no-block:pin <process-id|clear>", "warning");
     return null;
   }
 

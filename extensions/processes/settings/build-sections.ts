@@ -134,7 +134,7 @@ function buildOverviewDetailItem(
     label: "Overview panel",
     currentValue: `${maxVisibleProcesses} rows`,
     description:
-      "Open focused settings for the /ps overview panel visible row count.",
+      "Open focused settings for the /no-block overview panel visible row count.",
     submenu: (_current, done) => {
       const current = scopedConfig;
       let nextMaxVisible = String(maxVisibleProcesses);
@@ -159,7 +159,7 @@ function buildOverviewDetailItem(
             type: "text",
             label: "Visible rows",
             description:
-              "Maximum process rows shown at once in the /ps overview. The list scrolls past this.",
+              "Maximum process rows shown at once in the /no-block overview. The list scrolls past this.",
             getValue: () => nextMaxVisible,
             setValue: (value) => {
               nextMaxVisible = value;
@@ -200,7 +200,7 @@ function buildLogsDetailItem(
     label: "Logs overlay",
     currentValue: `${historyLines} lines · ${historyBudgetMb} MB · ${viewportRows} rows · ${followByDefault ? "follow" : "manual"}`,
     description:
-      "Open focused settings for /ps:logs tabs, history, viewport, and follow behavior.",
+      "Open focused settings for /no-block:logs tabs, history, viewport, and follow behavior.",
     submenu: (_current, done) => {
       const current = scopedConfig;
       let nextViewportRows = String(viewportRows);
@@ -246,7 +246,7 @@ function buildLogsDetailItem(
             type: "text",
             label: "Viewport rows",
             description:
-              "Maximum log rows rendered in the /ps:logs overlay body.",
+              "Maximum log rows rendered in the /no-block:logs overlay body.",
             getValue: () => nextViewportRows,
             setValue: (value) => {
               nextViewportRows = value;
@@ -328,7 +328,7 @@ function buildDockDetailItem(
     label: "Dock",
     currentValue: `${dockDefaultState} · ${dockHeight} log lines`,
     description:
-      "Open focused settings for the /ps:dock widget above the editor.",
+      "Open focused settings for the /no-block:dock widget above the editor.",
     submenu: (_current, done) => {
       const current = scopedConfig;
       let nextDockDefaultState = dockDefaultState;

@@ -1,6 +1,6 @@
 /**
  * The "? more" shortcuts overlay: a small centered panel stacked on top of
- * the `/ps` overview or the `/ps:logs` overlay that lists every shortcut the
+ * the `/no-block` overview or the `/no-block:logs` overlay that lists every shortcut the
  * footer may have truncated away.
  *
  * Layout follows herdr's keybinds panel: a title row (bold lowercase

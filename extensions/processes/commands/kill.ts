@@ -10,6 +10,7 @@ import {
   SelectList,
 } from "@earendil-works/pi-tui";
 import { LIVE_STATUSES } from "../../../src/types";
+import { registerNoBlockCommand } from "../../shared/no-block-commands";
 import {
   formatProcessSelectionDescription,
   formatProcessSelectionLabel,
@@ -17,7 +18,7 @@ import {
 import { requestKill, requestProcess, requestProcessList } from "../client";
 
 /**
- * Register `/ps:kill`.
+ * Register `/no-block:kill`.
  *
  * Stops a running managed process via the kill protocol channel. With no
  * argument it picks a target from the live processes (or kills the sole
@@ -27,7 +28,7 @@ import { requestKill, requestProcess, requestProcessList } from "../client";
  */
 export function registerKillCommand(pi: ExtensionAPI): void {
   const events = pi.events;
-  pi.registerCommand("ps:kill", {
+  registerNoBlockCommand(pi, ":kill", {
     description: "Stop a running managed process.",
     getArgumentCompletions: (prefix: string) => completions(events, prefix),
     handler: async (args: string, ctx: ExtensionCommandContext) => {
@@ -91,7 +92,7 @@ async function pickTarget(
   title: string,
 ): Promise<string | null> {
   if (ctx.mode !== "tui") {
-    ctx.ui.notify("Usage: /ps:kill <process-id>", "warning");
+    ctx.ui.notify("Usage: /no-block:kill <process-id>", "warning");
     return null;
   }
 

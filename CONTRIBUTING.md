@@ -31,9 +31,9 @@ pnpm test:e2e
 ## Repository layout
 
 - `src/` - Pi-agnostic process management, types, protocol, and utilities
-- `extensions/processes/` - core extension, process tool (start, list, output, update, write, stop, clear), settings, lifecycle hooks, notifications, protocol handlers, `/ps`, `/ps:kill`, `/ps:clear`, and `/ps:settings`
-- `extensions/processes-logs/` - `/ps:logs` command and log overlay
-- `extensions/processes-dock/` - `/ps:dock`, `/ps:pin`, the dock widget, and the status widget
+- `extensions/processes/` - core extension, process tool (start, list, output, update, write, stop, clear), settings, lifecycle hooks, notifications, protocol handlers, `/no-block`, `/no-block:kill`, `/no-block:clear`, and `/no-block:settings`
+- `extensions/processes-logs/` - `/no-block:logs` command and log overlay
+- `extensions/processes-dock/` - `/no-block:dock`, `/no-block:pin`, the dock widget, and the status widget
 - `extensions/shared/` - shared UI helpers (`statusDot`, `processStatusTone`, `LineComponent`, etc.) used across all three extensions
 - `skills/` - shipped package skills
 - `.agents/skills/` - local repo-only skills for development workflows
@@ -86,7 +86,7 @@ Useful manual process scripts live under `tests/e2e/scripts/`:
 ./tests/e2e/scripts/crash-on-file.sh <name>  # waits for a marker file then crashes
 ```
 
-See `.agents/skills/pi-processes-testing/SKILL.md` for the full manual QA workflow and the complete fixture script reference.
+See `.agents/skills/no-block-testing/SKILL.md` for the full manual QA workflow and the complete fixture script reference.
 
 ## Docs conventions
 

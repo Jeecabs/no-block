@@ -1,6 +1,6 @@
 /**
- * One renderer for a single line of process output, shared by the `/ps`
- * preview, the `/ps:logs` overlay, and the dock.
+ * One renderer for a single line of process output, shared by the `/no-block`
+ * preview, the `/no-block:logs` overlay, and the dock.
  *
  * Every log view sanitizes untrusted output, truncates it to the row width,
  * and tones it by stream and match state. Keeping that in one place is what
@@ -73,8 +73,8 @@ export function renderLogLine(
  * Continuation rows (every row after the first) are indented with a dim
  * `continuationPrefix` so the user can visually distinguish a wrapped chunk
  * from a new log line — matching `less`/`journalctl` behaviour.
- * Used by the `/ps:logs` overlay soft-wrap mode; `renderLogLine` (truncate)
- * remains the default for the `/ps` preview and dock.
+ * Used by the `/no-block:logs` overlay soft-wrap mode; `renderLogLine`
+ * remains the default for the `/no-block` preview and dock.
  */
 export function renderLogLineWrap(
   line: DisplayLogLine,

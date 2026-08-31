@@ -12,9 +12,9 @@ export const processesExtensionPath = fileURLToPath(
   new URL("../../extensions/processes/index.ts", import.meta.url),
 );
 
-/** Absolute path to the shipped pi-processes skill. */
+/** Absolute path to the shipped No Block skill. */
 export const processesSkillPath = fileURLToPath(
-  new URL("../../skills/pi-processes", import.meta.url),
+  new URL("../../skills/no-block", import.meta.url),
 );
 
 /**

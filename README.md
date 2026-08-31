@@ -78,9 +78,9 @@ Pi does not provide a provider-turn acknowledgment. No Block can guarantee retry
 
 ## Inspect a yielded job
 
-Use `/ps` to open the process panel. It shows running and recently finished finite jobs.
+Use `/no-block` to open the job panel. It shows running and recently finished finite jobs.
 
-Use `/ps:logs [id]` for retained output. Use `/ps:kill [id]` to stop a job. Use `/ps:clear` to remove finished entries and their log storage.
+Use `/no-block:logs [id]` for retained output. Use `/no-block:kill [id]` to stop a job. Use `/no-block:clear` to remove finished entries and their log storage.
 
 The model can use the inherited `process` tool to list jobs and inspect output. It can also write stdin, update log watches, stop jobs, and clear finished entries.
 
@@ -94,7 +94,7 @@ No Block supports macOS and Linux. It does not support Windows.
 
 ## Configuration
 
-Use `/ps:settings` for inherited process settings. These settings control shell path, output limits, panel size, follow mode, dock behavior, and the optional status widget.
+Use `/no-block:settings` for inherited process settings. These settings control shell path, output limits, panel size, follow mode, dock behavior, and the optional status widget.
 
 The inherited background-command interception option blocks shell patterns such as `&`, `nohup`, `disown`, and `setsid`. Keep service-shaped routing in the separate service manager integration.
 

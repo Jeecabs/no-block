@@ -27,11 +27,11 @@ const BORDER = {
 };
 
 /**
- * Local vendored variant of @aliou/pi-utils-ui Panel for /ps.
+ * Local vendored variant of @aliou/pi-utils-ui Panel for /no-block.
  *
  * The upstream Panel only supports a centered title. The overview needs
  * left/center/right header slots. Keep this small and local so it can be
- * upstreamed later without changing the rest of the /ps component.
+ * upstreamed later without changing the rest of the /no-block component.
  */
 export class OverviewPanel implements Component {
   private readonly title: string;
