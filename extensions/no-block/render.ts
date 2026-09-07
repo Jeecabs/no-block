@@ -7,10 +7,8 @@ import {
   type ToolRenderResultOptions,
 } from "@earendil-works/pi-coding-agent";
 import {
-  Box,
   type Component,
   Container,
-  Spacer,
   visibleWidth,
 } from "@earendil-works/pi-tui";
 import {
@@ -67,11 +65,10 @@ const PHASE_LABELS: Record<RunPhase, string> = {
   timed_out: "timed out",
 };
 
-/** Own the shell once, dispatching Python or Pi's existing Bash presentation. */
+/** Use Pi's tool shell for both Python and native Bash content. */
 export function createNoBlockRenderers() {
   const native = createBashToolDefinition(process.cwd());
   return {
-    renderShell: "self" as const,
     renderCall(args: RenderArgs, theme: Theme, context: Context): Component {
       if (usePythonView(args, context))
         return buildPythonCall(args, theme, context);
@@ -139,12 +136,7 @@ function buildNativeCall(
       getNativeContext(context, state.nativeCall),
     ) ?? new Container();
   state.nativeCall = component;
-  const box = new Box(1, 0, background(context, theme));
-  box.addChild(new Spacer(1));
-  box.addChild(component);
-  // A separate result slot closes the same box once a result exists.
-  box.addChild(new LinesComponent(() => (state.result ? [] : [""])));
-  return box;
+  return component;
 }
 
 function buildNativeResult(
@@ -163,10 +155,7 @@ function buildNativeResult(
       getNativeContext(context, state.nativeResult),
     ) ?? new Container();
   state.nativeResult = component;
-  const box = new Box(1, 0, background(context, theme));
-  box.addChild(component);
-  box.addChild(new Spacer(1));
-  return box;
+  return component;
 }
 
 function buildPythonResult(
@@ -240,15 +229,6 @@ function getNativeContext(context: Context, lastComponent?: Component) {
     state: context.state.native,
     lastComponent,
   };
-}
-
-function background(context: Context, theme: Theme) {
-  const color = context.isPartial
-    ? "toolPendingBg"
-    : context.isError
-      ? "toolErrorBg"
-      : "toolSuccessBg";
-  return (text: string) => theme.bg(color, text);
 }
 
 function runStatus(
