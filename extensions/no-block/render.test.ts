@@ -69,7 +69,7 @@ describe("Python tool rows in Pi", () => {
       "Calculate token cost",
     );
     finish(row);
-    expect(plain(row)).toHaveLength(3);
+    expect(plain(row)).toHaveLength(5);
     expect(plain(row).join("\n")).toContain("✓ 0.1s");
     expect(plain(row).join("\n")).not.toContain("print(");
     row.setExpanded(true);
@@ -91,9 +91,9 @@ describe("Python tool rows in Pi", () => {
         (_, index) => `${index} ${esc}]52;c;payload\u0007${"界".repeat(60)}`,
       ).join("\n"),
     );
-    for (const width of [1, 10, 20, 40, 80]) {
+    for (const width of [3, 10, 20, 40, 80]) {
       const rendered = row.render(width);
-      expect(rendered.length).toBeLessThanOrEqual(5);
+      expect(rendered.length).toBeLessThanOrEqual(7);
       expect(rendered.every((line) => visibleWidth(line) <= width)).toBe(true);
       expect(rendered.join("\n")).not.toContain("]52;");
     }
@@ -114,7 +114,7 @@ describe("Python tool rows in Pi", () => {
     expect(expanded).toContain("SOURCE_END");
     expect(expanded).toContain("OUTPUT_END");
     expect(expanded).toContain("stdout-end.log");
-    for (const width of [1, 2, 3, 40]) {
+    for (const width of [3, 4, 40]) {
       expect(
         row.render(width).every((line) => visibleWidth(line) <= width),
       ).toBe(true);
@@ -157,9 +157,35 @@ describe("Python tool rows in Pi", () => {
 
   it("does not flash source while Python arguments stream", () => {
     const row = createRow("python3 - <<'PY'\nprint(unfinished");
-    expect(plain(row)).toHaveLength(2);
+    expect(plain(row)).toHaveLength(4);
     expect(plain(row).join("\n")).not.toContain("print(");
   });
+
+  it.each([false, true])(
+    "keeps Python header and output inside the native tool block (error=%s)",
+    (isError) => {
+      const python = createRow("python3 /tmp/calculate_5.py");
+      const native = createRow("printf 30", undefined, false);
+      for (const row of [python, native]) finish(row, "30", details, isError);
+      const rendered = python.render(80);
+      const reference = native.render(80);
+      expect(rendered).toHaveLength(5);
+      const [separator, top, header, output, bottom] = rendered;
+      expect(reference).toHaveLength(6);
+      const [nativeSeparator, nativeTop, , , nativeOutput, nativeBottom] =
+        reference;
+      expect(separator).toBe(nativeSeparator);
+      expect(top).toBe(nativeTop);
+      expect(bottom).toBe(nativeBottom);
+      expect(plainTextForDisplay(output)).toBe(
+        plainTextForDisplay(nativeOutput),
+      );
+      expect(plainTextForDisplay(header)).toMatch(
+        /^ py \/tmp\/calculate_5\.py\s+.* $/u,
+      );
+      expect(top).not.toBe(" ".repeat(80));
+    },
+  );
 
   it("preserves native Bash framing during execution and streaming", () => {
     vi.useFakeTimers();
