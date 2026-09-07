@@ -270,7 +270,8 @@ function buildHeader(
       ? "success"
       : "muted";
   if (space < 4) return theme.fg(color, right);
-  const left = truncateForDisplay(`py ${title}`, space);
+  // biome-ignore lint/plugin: The Python tool label intentionally includes its snake icon.
+  const left = truncateForDisplay(`Python 🐍 ${title}`, space);
   return (
     theme.fg("toolTitle", left) +
     " ".repeat(Math.max(1, width - visibleWidth(left) - visibleWidth(right))) +

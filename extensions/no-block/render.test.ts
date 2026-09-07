@@ -181,7 +181,7 @@ describe("Python tool rows in Pi", () => {
         plainTextForDisplay(nativeOutput),
       );
       expect(plainTextForDisplay(header)).toMatch(
-        /^ py \/tmp\/calculate_5\.py\s+.* $/u,
+        /^ Python 🐍 \/tmp\/calculate_5\.py\s+.* $/u,
       );
       expect(top).not.toBe(" ".repeat(80));
     },
