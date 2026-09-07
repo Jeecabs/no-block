@@ -1,16 +1,20 @@
 import type {
   AgentToolResult,
   AgentToolUpdateCallback,
-  BashToolDetails,
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { truncateTail } from "@earendil-works/pi-coding-agent";
+import {
+  isBashToolResult,
+  truncateTail,
+} from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { ProcessManager } from "../../src/manager";
 import type { ManagerEvent, ProcessInfo } from "../../src/types";
 import { stripAnsi } from "../../src/utils";
 import type { NotificationRegistry } from "../processes/notifications/registry";
+import { createNoBlockRenderers } from "./render";
+import { buildRunDetails, type NoBlockDetails } from "./run-details";
 
 const DEFAULT_BACKGROUND_AFTER_SECONDS = 30;
 
@@ -57,7 +61,17 @@ export function registerNoBlockTool(
   manager: ProcessManager,
   notifications: NotificationRegistry,
 ): void {
+  const failures = new Map<string, NoBlockDetails>();
+  pi.on("tool_result", (event) => {
+    if (!isBashToolResult(event)) return;
+    const details = failures.get(event.toolCallId);
+    failures.delete(event.toolCallId);
+    if (details) return { details: { ...event.details, ...details } };
+  });
+  pi.on("session_shutdown", () => failures.clear());
+
   pi.registerTool({
+    ...createNoBlockRenderers(),
     name: "bash",
     label: "bash",
     description:
@@ -68,15 +82,22 @@ export function registerNoBlockTool(
       "Use bash for finite commands whose exit code matters. Use a service process manager for servers, watchers, tunnels, and other indefinite processes.",
     ],
     parameters: NoBlockParams,
-    async execute(_toolCallId, params, signal, onUpdate, ctx) {
-      return new FiniteCommandRun({
+    async execute(toolCallId, params, signal, onUpdate, ctx) {
+      const run = new FiniteCommandRun({
         params,
         manager,
         notifications,
         ctx,
         signal,
         onUpdate,
-      }).run();
+      });
+      try {
+        return await run.run();
+      } catch (error) {
+        const details = run.failureDetails();
+        if (details) failures.set(toolCallId, details);
+        throw error;
+      }
     },
   });
 }
@@ -97,11 +118,24 @@ class FiniteCommandRun {
       notifications: NotificationRegistry;
       ctx: ExtensionContext;
       signal?: AbortSignal;
-      onUpdate?: AgentToolUpdateCallback<BashToolDetails | undefined>;
+      onUpdate?: AgentToolUpdateCallback<NoBlockDetails | undefined>;
     },
   ) {}
 
-  async run(): Promise<AgentToolResult<BashToolDetails | undefined>> {
+  failureDetails(): NoBlockDetails | undefined {
+    if (!this.process) return undefined;
+    const phase = this.timedOut
+      ? "timed_out"
+      : this.aborted
+        ? "cancelled"
+        : "failed";
+    return buildRunDetails(
+      outcomeProcess(this.deps.manager, this.process),
+      phase,
+    );
+  }
+
+  async run(): Promise<AgentToolResult<NoBlockDetails | undefined>> {
     if (this.deps.signal?.aborted) throw new Error("Command aborted");
 
     this.process = this.startProcess();
@@ -117,6 +151,10 @@ class FiniteCommandRun {
       this.process.id,
       () => this.publishOutput(),
     );
+    this.deps.onUpdate?.({
+      content: [],
+      details: buildRunDetails(this.process, "foreground"),
+    });
 
     const outcome = await Promise.race([
       this.observation.promise.then(
@@ -148,7 +186,7 @@ class FiniteCommandRun {
           text: formatProcessOutput(this.deps.manager, this.process),
         },
       ],
-      details: undefined,
+      details: buildRunDetails(this.process, "foreground"),
     });
   }
 
@@ -209,7 +247,7 @@ class FiniteCommandRun {
 
   private settle(
     outcome: RunOutcome,
-  ): AgentToolResult<BashToolDetails | undefined> {
+  ): AgentToolResult<NoBlockDetails | undefined> {
     switch (outcome.kind) {
       case "finished":
         return this.settleFinished(outcome.process);
@@ -228,7 +266,7 @@ class FiniteCommandRun {
 
   private settleFinished(
     process: ProcessInfo,
-  ): AgentToolResult<BashToolDetails | undefined> {
+  ): AgentToolResult<NoBlockDetails | undefined> {
     this.clearBackgroundTimer();
     this.clearTimeoutTimer();
     if (this.aborted) throw this.abortError(process);
@@ -236,7 +274,7 @@ class FiniteCommandRun {
     return formatFinishedResult(this.deps.manager, process);
   }
 
-  private settleBackground(): AgentToolResult<BashToolDetails | undefined> {
+  private settleBackground(): AgentToolResult<NoBlockDetails | undefined> {
     this.observation.suppressOutput();
     if (this.timeoutTimer) {
       void this.observation.promise.then(() => this.clearTimeoutTimer());
@@ -284,7 +322,7 @@ function outcomeProcess(
 
 function formatBackgroundResult(
   process: ProcessInfo,
-): AgentToolResult<BashToolDetails | undefined> {
+): AgentToolResult<NoBlockDetails | undefined> {
   return {
     content: [
       {
@@ -295,14 +333,14 @@ function formatBackgroundResult(
           `stdout=${process.stdoutFile}\nstderr=${process.stderrFile}`,
       },
     ],
-    details: undefined,
+    details: buildRunDetails(process, "background"),
   };
 }
 
 function formatFinishedResult(
   manager: ProcessManager,
   process: ProcessInfo,
-): AgentToolResult<BashToolDetails | undefined> {
+): AgentToolResult<NoBlockDetails | undefined> {
   const text = formatProcessOutput(manager, process);
 
   if (process.exitCode !== 0) {
@@ -313,7 +351,10 @@ function formatFinishedResult(
     );
   }
 
-  return { content: [{ type: "text", text }], details: undefined };
+  return {
+    content: [{ type: "text", text }],
+    details: buildRunDetails(process, "completed"),
+  };
 }
 
 function observeProcessEnd(
