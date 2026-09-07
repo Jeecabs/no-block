@@ -3,6 +3,7 @@ import {
   type ExtensionAPI,
   type ExtensionContext,
   type ToolDefinition,
+  type ToolResultEvent,
 } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
 
@@ -98,17 +99,35 @@ function captureBashTool(
 ): {
   tool: ToolDefinition;
   notifications: ReturnType<typeof createNotificationRegistry>;
+  patchResult: (toolCallId: string) => unknown;
 } {
   const tools: ToolDefinition[] = [];
+  let patchResult: (event: ToolResultEvent) => unknown = () => undefined;
   const pi = {
+    on(event: string, handler: typeof patchResult) {
+      if (event === "tool_result") patchResult = handler;
+    },
     registerTool(tool: ToolDefinition) {
       tools.push(tool);
     },
-  } as ExtensionAPI;
+  } as unknown as ExtensionAPI;
   registerNoBlockTool(pi, manager, notifications);
   const tool = tools.find((candidate) => candidate.name === "bash");
   if (!tool) throw new Error("No Block did not register bash");
-  return { tool, notifications };
+  return {
+    tool,
+    notifications,
+    patchResult: (toolCallId) =>
+      patchResult({
+        type: "tool_result",
+        toolName: "bash",
+        toolCallId,
+        input: { command: "python3 script.py" },
+        content: [],
+        details: undefined,
+        isError: true,
+      }),
+  };
 }
 
 const ctx = { cwd: "/repo" } as ExtensionContext;
@@ -133,6 +152,44 @@ describe("No Block bash", () => {
       { type: "text", text: "all tests passed" },
     ]);
     expect(notifications.get("proc_1")?.completionDelivery).toBe("tool");
+    expect(result.details).toMatchObject({
+      noBlock: {
+        phase: "completed",
+        processId: "proc_1",
+        startedAt: 1000,
+        endedAt: 2000,
+      },
+    });
+  });
+
+  it("preserves Python failure output and attaches replay metadata once", async () => {
+    const fake = createFakeManager();
+    const { tool, patchResult } = captureBashTool(fake.manager);
+    const command = "python3 -c 'raise ValueError(\"bad input\")'";
+    const execution = tool.execute(
+      "python_failure",
+      { command },
+      undefined,
+      undefined,
+      ctx,
+    );
+    const rejection = expect(execution).rejects.toThrow(
+      "ValueError: bad input",
+    );
+    fake.output(
+      'Traceback (most recent call last):\n  File "<string>", line 1, in <module>\nValueError: bad input',
+    );
+    fake.finish(1);
+    await rejection;
+    expect(fake.rawManager.start).toHaveBeenCalledWith(
+      "bash-python3",
+      command,
+      ctx.cwd,
+    );
+    expect(patchResult("python_failure")).toMatchObject({
+      details: { noBlock: { phase: "failed", exitCode: 1 } },
+    });
+    expect(patchResult("python_failure")).toBeUndefined();
   });
 
   it("bounds streamed foreground output and retains its tail", async () => {
@@ -155,7 +212,7 @@ describe("No Block bash", () => {
     fake.finish(0);
     await execution;
 
-    const update = onUpdate.mock.calls.at(0)?.at(0);
+    const update = onUpdate.mock.calls.at(-1)?.at(0);
     const text = update?.content.find(
       (part: { type: string; text?: string }) => part.type === "text",
     )?.text;
@@ -188,6 +245,9 @@ describe("No Block bash", () => {
 
       expect(text).toContain("proc_1");
       expect(text).toContain("still running");
+      expect(result.details).toMatchObject({
+        noBlock: { phase: "background", endedAt: null },
+      });
       expect(notifications.get("proc_1")?.completionDelivery).toBe("notify");
     } finally {
       vi.useRealTimers();

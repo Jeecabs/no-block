@@ -60,6 +60,16 @@ If the job is still running at `backgroundAfter`, Bash returns its process ID an
 
 A hard `timeout` remains active after background handoff. When it expires, No Block stops the process group and reports the terminal event once.
 
+## Python output
+
+Direct Python commands use a compact view inside the existing Bash tool. Virtualenv paths such as `.venv/bin/python` work too.
+
+The collapsed view shows the job name, status, and up to three output lines. Expand the tool result to inspect inline source, the original command, output, and log paths.
+
+No Block executes the original command without changes. Python uses the same foreground wait, timeout, cancellation, and background notifications as other Bash jobs. Compound commands and unsupported Python invocations keep the normal Bash view.
+
+See [Python presentation](docs/python-presentation.md) for supported commands and limits.
+
 ## Completion delivery
 
 No Block uses `followUp` for an unobserved background completion. It does not steer an active tool batch.
