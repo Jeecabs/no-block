@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-DEFAULT_REF="v0.84.1"
+DEFAULT_REF="v0.99.1"
 DEFAULT_REPO="https://github.com/earendil-works/pi"
 
 ref="${PI_EVALS_REF:-$DEFAULT_REF}"

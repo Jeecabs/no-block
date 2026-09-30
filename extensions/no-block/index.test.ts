@@ -1,7 +1,7 @@
 import {
   createEventBus,
   type ExtensionAPI,
-  type ExtensionContext,
+  type ExtensionToolContext,
   type ToolDefinition,
   type ToolResultEvent,
 } from "@earendil-works/pi-coding-agent";
@@ -130,7 +130,7 @@ function captureBashTool(
   };
 }
 
-const ctx = { cwd: "/repo" } as ExtensionContext;
+const ctx = { cwd: "/repo" } as ExtensionToolContext;
 
 describe("No Block bash", () => {
   it("returns the normal result when a finite command exits quickly", async () => {
@@ -151,6 +151,14 @@ describe("No Block bash", () => {
     expect(result.content).toEqual([
       { type: "text", text: "all tests passed" },
     ]);
+    expect(result.structuredContent).toEqual({
+      status: "completed",
+      process_id: "proc_1",
+      output: "all tests passed",
+      truncated: false,
+      exit_code: 0,
+      wall_time_seconds: 1,
+    });
     expect(notifications.get("proc_1")?.completionDelivery).toBe("tool");
     expect(result.details).toMatchObject({
       noBlock: {
@@ -162,7 +170,7 @@ describe("No Block bash", () => {
     });
   });
 
-  it("preserves Python failure output and attaches replay metadata once", async () => {
+  it("returns a non-zero exit as an error result that keeps its exit code", async () => {
     const fake = createFakeManager();
     const { tool, patchResult } = captureBashTool(fake.manager);
     const command = "python3 -c 'raise ValueError(\"bad input\")'";
@@ -173,22 +181,32 @@ describe("No Block bash", () => {
       undefined,
       ctx,
     );
-    const rejection = expect(execution).rejects.toThrow(
-      "ValueError: bad input",
-    );
     fake.output(
       'Traceback (most recent call last):\n  File "<string>", line 1, in <module>\nValueError: bad input',
     );
     fake.finish(1);
-    await rejection;
+    const result = await execution;
+
+    expect(result.isError).toBe(true);
+    expect(result.content.at(0)).toMatchObject({
+      text: expect.stringContaining("ValueError: bad input"),
+    });
+    expect(result.content.at(0)).toMatchObject({
+      text: expect.stringContaining("Command exited with code 1"),
+    });
+    expect(result.structuredContent).toMatchObject({
+      status: "completed",
+      exit_code: 1,
+      output: expect.stringContaining("ValueError: bad input"),
+    });
+    expect(result.details).toMatchObject({
+      noBlock: { phase: "failed", exitCode: 1 },
+    });
     expect(fake.rawManager.start).toHaveBeenCalledWith(
       "bash-python3",
       command,
       ctx.cwd,
     );
-    expect(patchResult("python_failure")).toMatchObject({
-      details: { noBlock: { phase: "failed", exitCode: 1 } },
-    });
     expect(patchResult("python_failure")).toBeUndefined();
   });
 
@@ -247,6 +265,11 @@ describe("No Block bash", () => {
       expect(text).toContain("still running");
       expect(result.details).toMatchObject({
         noBlock: { phase: "background", endedAt: null },
+      });
+      expect(result.structuredContent).toMatchObject({
+        status: "running",
+        process_id: "proc_1",
+        exit_code: null,
       });
       expect(notifications.get("proc_1")?.completionDelivery).toBe("notify");
     } finally {
@@ -334,7 +357,7 @@ describe("No Block bash", () => {
 
   it("stops a foreground command when the tool call is cancelled", async () => {
     const fake = createFakeManager();
-    const { tool, notifications } = captureBashTool(fake.manager);
+    const { tool, notifications, patchResult } = captureBashTool(fake.manager);
     const controller = new AbortController();
 
     const execution = tool.execute(
@@ -350,6 +373,10 @@ describe("No Block bash", () => {
 
     expect(fake.rawManager.kill).toHaveBeenCalledWith("proc_1");
     expect(notifications.get("proc_1")?.completionDelivery).toBe("tool");
+    expect(patchResult("tool_1")).toMatchObject({
+      details: { noBlock: { phase: "cancelled" } },
+    });
+    expect(patchResult("tool_1")).toBeUndefined();
   });
 
   it("kills a foreground command at its hard timeout", async () => {

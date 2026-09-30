@@ -17,6 +17,8 @@ import { createNoBlockRenderers } from "./render";
 import { buildRunDetails, type NoBlockDetails } from "./run-details";
 
 const DEFAULT_BACKGROUND_AFTER_SECONDS = 30;
+/** Output limit of `structuredContent.output`, matching Pi's built-in bash. */
+const STRUCTURED_OUTPUT_MAX_BYTES = 1024 * 1024;
 
 const NoBlockParams = Type.Object({
   command: Type.String({ description: "Finite shell command to execute" }),
@@ -36,6 +38,40 @@ const NoBlockParams = Type.Object({
     }),
   ),
 });
+
+/**
+ * Result for programmatic callers such as codemode scripts. Shares Pi's
+ * built-in bash fields and adds the background handoff state.
+ */
+const NoBlockOutput = Type.Object({
+  status: Type.Union([Type.Literal("completed"), Type.Literal("running")], {
+    description:
+      "running: the command continues in the background and No Block reports its exit in a later message",
+  }),
+  process_id: Type.String({
+    description: "No Block process id for the process tool",
+  }),
+  output: Type.String({
+    description:
+      "Combined stdout and stderr so far, up to the last 1 MiB. Empty when there is no output.",
+  }),
+  truncated: Type.Boolean({
+    description: "Whether `output` omits earlier command output",
+  }),
+  exit_code: Type.Union([Type.Number(), Type.Null()], {
+    description: "null while status is running",
+  }),
+  wall_time_seconds: Type.Number(),
+});
+
+type NoBlockOutput = {
+  status: "completed" | "running";
+  process_id: string;
+  output: string;
+  truncated: boolean;
+  exit_code: number | null;
+  wall_time_seconds: number;
+};
 
 type NoBlockInput = {
   command: string;
@@ -82,6 +118,7 @@ export function registerNoBlockTool(
       "Use bash for finite commands whose exit code matters. Use a service process manager for servers, watchers, tunnels, and other indefinite processes.",
     ],
     parameters: NoBlockParams,
+    outputSchema: NoBlockOutput,
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const run = new FiniteCommandRun({
         params,
@@ -281,7 +318,10 @@ class FiniteCommandRun {
     } else {
       this.observation.dispose();
     }
-    return formatBackgroundResult(this.process);
+    return formatBackgroundResult(
+      this.deps.manager,
+      outcomeProcess(this.deps.manager, this.process),
+    );
   }
 
   private timeoutError(process: ProcessInfo): Error {
@@ -321,6 +361,7 @@ function outcomeProcess(
 }
 
 function formatBackgroundResult(
+  manager: ProcessManager,
   process: ProcessInfo,
 ): AgentToolResult<NoBlockDetails | undefined> {
   return {
@@ -334,6 +375,7 @@ function formatBackgroundResult(
       },
     ],
     details: buildRunDetails(process, "background"),
+    structuredContent: buildStructuredOutput(manager, process, "running"),
   };
 }
 
@@ -342,18 +384,58 @@ function formatFinishedResult(
   process: ProcessInfo,
 ): AgentToolResult<NoBlockDetails | undefined> {
   const text = formatProcessOutput(manager, process);
+  const failure = [text === "(no output)" ? "" : text, formatFailure(process)]
+    .filter(Boolean)
+    .join("\n\n");
 
+  if (process.exitCode === null) throw new Error(failure);
+
+  // A non-zero exit is an error for the model, but scripts still resolve to
+  // the exit code, as with Pi's built-in bash.
+  const structuredContent = buildStructuredOutput(
+    manager,
+    process,
+    "completed",
+  );
   if (process.exitCode !== 0) {
-    throw new Error(
-      [text === "(no output)" ? "" : text, formatFailure(process)]
-        .filter(Boolean)
-        .join("\n\n"),
-    );
+    return {
+      content: [{ type: "text", text: failure }],
+      details: buildRunDetails(process, "failed"),
+      structuredContent,
+      isError: true,
+    };
   }
 
   return {
     content: [{ type: "text", text }],
     details: buildRunDetails(process, "completed"),
+    structuredContent,
+  };
+}
+
+function buildStructuredOutput(
+  manager: ProcessManager,
+  process: ProcessInfo,
+  status: NoBlockOutput["status"],
+): NoBlockOutput {
+  // ponytail: keeps the tail only; Pi's bash keeps head and tail. Add the head if scripts need it.
+  const lines =
+    manager.getCombinedOutput(process.id, Number.MAX_SAFE_INTEGER) ?? [];
+  const full = Buffer.from(
+    lines.map((line) => stripAnsi(line.text)).join("\n"),
+  );
+  const truncated = full.length > STRUCTURED_OUTPUT_MAX_BYTES;
+  const output = truncated
+    ? full.subarray(full.length - STRUCTURED_OUTPUT_MAX_BYTES).toString()
+    : full.toString();
+  const endedAt = process.endTime ?? Date.now();
+  return {
+    status,
+    process_id: process.id,
+    output,
+    truncated,
+    exit_code: process.exitCode,
+    wall_time_seconds: Math.round((endedAt - process.startTime) / 100) / 10,
   };
 }
 

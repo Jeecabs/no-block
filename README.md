@@ -20,7 +20,46 @@ No Block builds on [aliou/pi-processes](https://github.com/aliou/pi-processes). 
 
 A finite job has a meaningful terminal result. An indefinite service is successful while it stays alive. Do not use No Block as a service manager.
 
+## No Block and codemode
+
+Pi's [codemode](https://pi.dev/docs/latest/cli#enable-codemode) lets the model write one JavaScript script that calls other tools. A script can run commands in parallel, chain results, and filter large output before it reaches the model. Codemode does not make commands run in the background. The script is a single tool call, and the agent waits until every awaited call inside it returns. Scripts have no timers, so a script cannot wait for a job later.
+
+No Block limits how long one shell command can hold the agent. The two tools solve different problems.
+
+| You want to | Use |
+| --- | --- |
+| Run several commands at once or chain their results | codemode |
+| Reduce large output before the model reads it | codemode |
+| Keep a slow command from blocking the agent | No Block |
+| Receive a long job's exit after the turn has moved on | No Block |
+
+They work together. When codemode is active, scripts call No Block's `bash`. The call resolves to an object. `output`, `truncated`, `exit_code`, and `wall_time_seconds` match Pi's built-in Bash result. `status` and `process_id` describe the handoff:
+
+```ts
+type NoBlockBashResult = {
+  status: "completed" | "running";
+  process_id: string;
+  output: string; // stdout and stderr, ANSI stripped, last 1 MiB
+  truncated: boolean;
+  exit_code: number | null; // null while running
+  wall_time_seconds: number;
+};
+```
+
+A non-zero exit resolves with its `exit_code`, as with the built-in Bash tool. A command that reaches `backgroundAfter` resolves with `status: "running"` and the output so far. The script continues. No Block reports the exit in one follow-up message, which the agent reads after the codemode call returns.
+
+Known limits:
+
+- `output` keeps the last 1 MiB. Pi's built-in Bash keeps the first and last 512 KiB. Use the `process` tool with `process_id` to read retained logs.
+- The result has no `full_output_path`, unlike the built-in Bash result.
+- Script calls render inside the codemode row. The compact Python view applies only to direct Bash calls.
+- A timeout, a cancellation, or a command killed by a signal rejects the script call, as with the built-in Bash tool.
+
+Without codemode, the model sees the same Bash results as before.
+
 ## Installation
+
+No Block requires Pi 0.99.1 or later. Older Pi versions report a non-zero exit as a successful result.
 
 From npm after the first release:
 

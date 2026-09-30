@@ -66,6 +66,10 @@ process output
 
 No Block sends one follow-up after an unobserved background exit. A direct foreground Bash result suppresses the extra lifecycle notification.
 
+## Codemode scripts
+
+In a codemode script, `tools.bash()` resolves to `{ status, process_id, output, truncated, exit_code, wall_time_seconds }`. A non-zero exit resolves with its `exit_code`; it does not reject. Check `status` before you read `exit_code`. `"running"` means the job passed its foreground wait. The script cannot wait for it. No Block reports the exit in a later message.
+
 ## Process tool
 
 Use the inherited `process` tool to inspect and control a yielded finite job.
