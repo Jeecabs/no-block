@@ -9,7 +9,7 @@ Use `bash` for finite commands whose exit code matters.
 
 A quick command returns normally. A slow command yields after its foreground wait and continues under No Block. No Block reports the terminal result later. Do not sleep or poll while a yielded job runs.
 
-Use a service process manager for dev servers, watchers, tunnels, local APIs, port forwards, log tails, and other indefinite processes. An indefinite service is successful while it stays alive. No Block is for commands that must terminate.
+Use a service process manager such as [whiskd](https://github.com/Jeecabs/whiskd) for dev servers, watchers, tunnels, local APIs, port forwards, log tails, and other indefinite processes. An indefinite service is successful while it stays alive. No Block is for commands that must terminate.
 
 ## Bash
 
@@ -49,7 +49,7 @@ kubectl port-forward service/api 3000:3000
 tail -f app.log
 ```
 
-Route those commands to a service process manager.
+Route those commands to a service process manager such as [whiskd](https://github.com/Jeecabs/whiskd).
 
 ## After Bash yields
 

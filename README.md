@@ -15,7 +15,7 @@ No Block builds on [aliou/pi-processes](https://github.com/aliou/pi-processes). 
 | Command type | Use |
 | --- | --- |
 | Tests, checks, migrations, exports, archives, and other finite jobs | No Block `bash` |
-| Dev servers, watchers, local APIs, tunnels, port forwards, and log tails | A service process manager such as whiskd |
+| Dev servers, watchers, local APIs, tunnels, port forwards, and log tails | A service process manager such as [whiskd](https://github.com/Jeecabs/whiskd) |
 | Docker or Podman workloads | The native container lifecycle |
 
 A finite job has a meaningful terminal result. An indefinite service is successful while it stays alive. Do not use No Block as a service manager.
@@ -145,7 +145,7 @@ No Block supports macOS and Linux. It does not support Windows.
 
 Use `/no-block:settings` for inherited process settings. These settings control shell path, output limits, panel size, follow mode, dock behavior, and the optional status widget.
 
-The inherited background-command interception option blocks shell patterns such as `&`, `nohup`, `disown`, and `setsid`. Keep service-shaped routing in the separate service manager integration.
+The inherited background-command interception option blocks shell patterns such as `&`, `nohup`, `disown`, and `setsid`. Route services to a service process manager such as [whiskd](https://github.com/Jeecabs/whiskd).
 
 ## Development
 
