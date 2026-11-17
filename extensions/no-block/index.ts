@@ -4,10 +4,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import {
-  isBashToolResult,
-  truncateTail,
-} from "@earendil-works/pi-coding-agent";
+import { truncateTail } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { ProcessManager } from "../../src/manager";
 import type { ManagerEvent, ProcessInfo } from "../../src/types";
@@ -97,15 +94,6 @@ export function registerNoBlockTool(
   manager: ProcessManager,
   notifications: NotificationRegistry,
 ): void {
-  const failures = new Map<string, NoBlockDetails>();
-  pi.on("tool_result", (event) => {
-    if (!isBashToolResult(event)) return;
-    const details = failures.get(event.toolCallId);
-    failures.delete(event.toolCallId);
-    if (details) return { details: { ...event.details, ...details } };
-  });
-  pi.on("session_shutdown", () => failures.clear());
-
   pi.registerTool({
     ...createNoBlockRenderers(),
     name: "bash",
@@ -119,22 +107,15 @@ export function registerNoBlockTool(
     ],
     parameters: NoBlockParams,
     outputSchema: NoBlockOutput,
-    async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const run = new FiniteCommandRun({
+    async execute(_toolCallId, params, signal, onUpdate, ctx) {
+      return new FiniteCommandRun({
         params,
         manager,
         notifications,
         ctx,
         signal,
         onUpdate,
-      });
-      try {
-        return await run.run();
-      } catch (error) {
-        const details = run.failureDetails();
-        if (details) failures.set(toolCallId, details);
-        throw error;
-      }
+      }).run();
     },
   });
 }
@@ -158,19 +139,6 @@ class FiniteCommandRun {
       onUpdate?: AgentToolUpdateCallback<NoBlockDetails | undefined>;
     },
   ) {}
-
-  failureDetails(): NoBlockDetails | undefined {
-    if (!this.process) return undefined;
-    const phase = this.timedOut
-      ? "timed_out"
-      : this.aborted
-        ? "cancelled"
-        : "failed";
-    return buildRunDetails(
-      outcomeProcess(this.deps.manager, this.process),
-      phase,
-    );
-  }
 
   async run(): Promise<AgentToolResult<NoBlockDetails | undefined>> {
     if (this.deps.signal?.aborted) throw new Error("Command aborted");
@@ -290,12 +258,14 @@ class FiniteCommandRun {
         return this.settleFinished(outcome.process);
       case "timeout":
         this.observation.dispose();
-        throw this.timeoutError(
+        return this.timeoutResult(
           outcomeProcess(this.deps.manager, this.process),
         );
       case "abort":
         this.observation.dispose();
-        throw this.abortError(outcomeProcess(this.deps.manager, this.process));
+        return this.abortResult(
+          outcomeProcess(this.deps.manager, this.process),
+        );
       case "background":
         return this.settleBackground();
     }
@@ -306,8 +276,8 @@ class FiniteCommandRun {
   ): AgentToolResult<NoBlockDetails | undefined> {
     this.clearBackgroundTimer();
     this.clearTimeoutTimer();
-    if (this.aborted) throw this.abortError(process);
-    if (this.timedOut) throw this.timeoutError(process);
+    if (this.aborted) return this.abortResult(process);
+    if (this.timedOut) return this.timeoutResult(process);
     return formatFinishedResult(this.deps.manager, process);
   }
 
@@ -324,15 +294,25 @@ class FiniteCommandRun {
     );
   }
 
-  private timeoutError(process: ProcessInfo): Error {
-    return new Error(
-      `Command timed out after ${this.deps.params.timeout} seconds\n\n${formatProcessOutput(this.deps.manager, process)}`,
+  private timeoutResult(
+    process: ProcessInfo,
+  ): AgentToolResult<NoBlockDetails | undefined> {
+    return failedResult(
+      this.deps.manager,
+      process,
+      "timed_out",
+      `Command timed out after ${this.deps.params.timeout} seconds`,
     );
   }
 
-  private abortError(process: ProcessInfo): Error {
-    return new Error(
-      `Command aborted\n\n${formatProcessOutput(this.deps.manager, process)}`,
+  private abortResult(
+    process: ProcessInfo,
+  ): AgentToolResult<NoBlockDetails | undefined> {
+    return failedResult(
+      this.deps.manager,
+      process,
+      "cancelled",
+      "Command aborted",
     );
   }
 
@@ -388,7 +368,9 @@ function formatFinishedResult(
     .filter(Boolean)
     .join("\n\n");
 
-  if (process.exitCode === null) throw new Error(failure);
+  if (process.exitCode === null) {
+    return failedResult(manager, process, "failed", formatFailure(process));
+  }
 
   // A non-zero exit is an error for the model, but scripts still resolve to
   // the exit code, as with Pi's built-in bash.
@@ -410,6 +392,30 @@ function formatFinishedResult(
     content: [{ type: "text", text }],
     details: buildRunDetails(process, "completed"),
     structuredContent,
+  };
+}
+
+/**
+ * A run that ended without an exit code (timeout, cancellation, signal).
+ * Returned as an error result rather than thrown so the renderer still gets
+ * the run's details and scripts still get its output.
+ */
+function failedResult(
+  manager: ProcessManager,
+  process: ProcessInfo,
+  phase: "timed_out" | "cancelled" | "failed",
+  reason: string,
+): AgentToolResult<NoBlockDetails | undefined> {
+  return {
+    content: [
+      {
+        type: "text",
+        text: `${reason}\n\n${formatProcessOutput(manager, process)}`,
+      },
+    ],
+    details: buildRunDetails(process, phase),
+    structuredContent: buildStructuredOutput(manager, process, "completed"),
+    isError: true,
   };
 }
 

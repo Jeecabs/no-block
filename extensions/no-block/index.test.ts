@@ -3,7 +3,6 @@ import {
   type ExtensionAPI,
   type ExtensionToolContext,
   type ToolDefinition,
-  type ToolResultEvent,
 } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
 
@@ -99,14 +98,9 @@ function captureBashTool(
 ): {
   tool: ToolDefinition;
   notifications: ReturnType<typeof createNotificationRegistry>;
-  patchResult: (toolCallId: string) => unknown;
 } {
   const tools: ToolDefinition[] = [];
-  let patchResult: (event: ToolResultEvent) => unknown = () => undefined;
   const pi = {
-    on(event: string, handler: typeof patchResult) {
-      if (event === "tool_result") patchResult = handler;
-    },
     registerTool(tool: ToolDefinition) {
       tools.push(tool);
     },
@@ -114,20 +108,7 @@ function captureBashTool(
   registerNoBlockTool(pi, manager, notifications);
   const tool = tools.find((candidate) => candidate.name === "bash");
   if (!tool) throw new Error("No Block did not register bash");
-  return {
-    tool,
-    notifications,
-    patchResult: (toolCallId) =>
-      patchResult({
-        type: "tool_result",
-        toolName: "bash",
-        toolCallId,
-        input: { command: "python3 script.py" },
-        content: [],
-        details: undefined,
-        isError: true,
-      }),
-  };
+  return { tool, notifications };
 }
 
 const ctx = { cwd: "/repo" } as ExtensionToolContext;
@@ -172,7 +153,7 @@ describe("No Block bash", () => {
 
   it("returns a non-zero exit as an error result that keeps its exit code", async () => {
     const fake = createFakeManager();
-    const { tool, patchResult } = captureBashTool(fake.manager);
+    const { tool } = captureBashTool(fake.manager);
     const command = "python3 -c 'raise ValueError(\"bad input\")'";
     const execution = tool.execute(
       "python_failure",
@@ -207,7 +188,6 @@ describe("No Block bash", () => {
       command,
       ctx.cwd,
     );
-    expect(patchResult("python_failure")).toBeUndefined();
   });
 
   it("bounds streamed foreground output and retains its tail", async () => {
@@ -357,7 +337,7 @@ describe("No Block bash", () => {
 
   it("stops a foreground command when the tool call is cancelled", async () => {
     const fake = createFakeManager();
-    const { tool, notifications, patchResult } = captureBashTool(fake.manager);
+    const { tool, notifications } = captureBashTool(fake.manager);
     const controller = new AbortController();
 
     const execution = tool.execute(
@@ -367,16 +347,16 @@ describe("No Block bash", () => {
       undefined,
       ctx,
     );
-    const rejection = expect(execution).rejects.toThrow("Command aborted");
     controller.abort();
-    await rejection;
+    const result = await execution;
 
-    expect(fake.rawManager.kill).toHaveBeenCalledWith("proc_1");
-    expect(notifications.get("proc_1")?.completionDelivery).toBe("tool");
-    expect(patchResult("tool_1")).toMatchObject({
+    expect(result).toMatchObject({
+      isError: true,
+      content: [{ text: expect.stringContaining("Command aborted") }],
       details: { noBlock: { phase: "cancelled" } },
     });
-    expect(patchResult("tool_1")).toBeUndefined();
+    expect(fake.rawManager.kill).toHaveBeenCalledWith("proc_1");
+    expect(notifications.get("proc_1")?.completionDelivery).toBe("tool");
   });
 
   it("kills a foreground command at its hard timeout", async () => {
@@ -396,11 +376,20 @@ describe("No Block bash", () => {
         undefined,
         ctx,
       );
-      const rejection = expect(execution).rejects.toThrow(
-        "Command timed out after 0.01 seconds",
-      );
       await vi.advanceTimersByTimeAsync(10);
-      await rejection;
+
+      const result = await execution;
+      expect(result).toMatchObject({
+        isError: true,
+        content: [
+          {
+            text: expect.stringContaining(
+              "Command timed out after 0.01 seconds",
+            ),
+          },
+        ],
+        details: { noBlock: { phase: "timed_out" } },
+      });
 
       expect(fake.rawManager.kill).toHaveBeenCalledWith("proc_1");
       expect(notifications.get("proc_1")?.completionDelivery).toBe("tool");
