@@ -1,7 +1,12 @@
-import { StringEnum } from "@earendil-works/pi-ai";
 import { type Static, Type } from "typebox";
 
 import { MAX_NOTIFY_LOG_MATCHERS, MAX_NOTIFY_PATTERN_LENGTH } from "./notify";
+
+// pi-ai 1.x StringEnum returns a pi-schema type that TypeBox's Static can't infer; keep TypeBox typing with the same {type:"string", enum} shape.
+const StringEnum = <T extends readonly string[]>(
+  values: T,
+  options?: { description?: string; default?: T[number] },
+) => Type.Unsafe<T[number]>({ type: "string", enum: [...values], ...options });
 
 // --- Output action constants ---
 
